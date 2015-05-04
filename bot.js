@@ -97,7 +97,7 @@ bot.addListener('join', function(chan, nick) {
         db.query('SELECT * from Message M ' +
         'JOIN User U ON M.TargetID = U.UserID ' +
         'JOIN Nick N ON U.UserID = N.UserID ' +
-        'WHERE N.Nickname LIKE ?', ['%'+nick+'%'], function(error, results) {
+        'WHERE N.Nickname LIKE ? GROUP BY M.MessageID', ['%'+nick+'%'], function(error, results) {
             for (var i in results) {
                 var message = results[i];
                 var to = (message.IsPrivate == 1) ? nick : chan;
