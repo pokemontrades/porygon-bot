@@ -10,6 +10,8 @@ var db = mysql.createConnection({
     timezone: 'Europe/London'
 });
 
+var functionalChans = config.channels;
+
 var bot = new irc.Client(config.server, config.nick, {
     userName: config.username,
     realName: config.realname,
@@ -25,8 +27,6 @@ bot.on('error', function(e) {
     console.log(e);
 });
 
-var functionalChans = config.channels;
-
 db.connect(function(e) {
    if (e) {
        console.error('error connecting: ' + e.stack);
@@ -39,6 +39,12 @@ function getMain(nick, callback) {
             if (err) console.log(err);
             callback(result[0]);
         });
+}
+
+function getMessage(line) {
+    var sub = line.substring(5);
+    var space = sub.indexOf(" ");
+    return [sub.substring(0, space), sub.substring(space+1)];
 }
 
 function error(chan) {
@@ -108,11 +114,6 @@ bot.addListener('join', function(chan, nick) {
     }
 });
 
-function getMessage(line) {
-    var sub = line.substring(5);
-    var space = sub.indexOf(" ");
-    return [sub.substring(0, space), sub.substring(space+1)];
-}
 
 var highFive1;
 var highFive2;
