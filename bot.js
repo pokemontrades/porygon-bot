@@ -100,7 +100,7 @@ bot.addListener('join', function(chan, nick) {
         'WHERE N.Nickname LIKE ? GROUP BY M.MessageID', ['%'+nick+'%'], function(error, results) {
             for (var i in results) {
                 var message = results[i];
-                var to = (message.IsPrivate == 1) ? nick : chan;
+                var to = (message.IsPrivate) ? nick : chan;
                 bot.say(to, nick + ": " + message.MessageText + " (from " +
                 message.SenderName + ", " + message.MessageDate + " UTC)");
                 var msgid = message.MessageID;
