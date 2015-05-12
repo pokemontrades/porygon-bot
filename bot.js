@@ -28,9 +28,9 @@ bot.on('error', function(e) {
 });
 
 db.connect(function(e) {
-   if (e) {
-       console.error('error connecting: ' + e.stack);
-   }
+    if (e) {
+        console.error('error connecting: ' + e.stack);
+    }
 });
 
 function getMain(nick, callback) {
@@ -49,6 +49,19 @@ function getMessage(line) {
 
 function error(chan) {
     bot.say(chan, 'There was an error. Do I even know that person?');
+}
+
+var highFive1;
+var highFive2;
+
+function hf1(chan, u2) {
+    bot.say(chan, highFive1 + ' o/\\o ' + u2);
+    highFive1 = undefined;
+}
+
+function hf2(chan, u2) {
+    bot.say(chan, u2 + ' o/\\o ' + highFive2);
+    highFive2 = undefined;
 }
 
 bot.addListener('message', function(sender, chan, line) {
@@ -86,9 +99,28 @@ bot.addListener('message', function(sender, chan, line) {
                     error(chan);
                 }
             });
-
         }
+    } else { // end of !msg
+        if (functionalChans.indexOf(chan) > -1) {
+            if (line.indexOf('o/') != -1) {
+                if (highFive2) {
+                    hf2(chan, sender);
+                } else {
+                    highFive1 = sender;
+                }
+            } else if (line.indexOf('\\o') != -1) {
+                if (highFive1) {
+                    hf1(chan, sender);
+                } else {
+                    highFive2 = sender;
+                }
+            } // end of high fives
 
+            line = line.toLowerCase();
+            if (line.indexOf('gib pokélist') != -1 || line.indexOf('gib pokelist') != -1) {
+                bot.say(chan, "http://i.imgur.com/xixihlD.png (づ￣ ³￣)づ");
+            }
+        }
     }
 });
 
@@ -114,34 +146,14 @@ bot.addListener('join', function(chan, nick) {
     }
 });
 
+var friendlyNicks = config.friendly;
 
-var highFive1;
-var highFive2;
-
-bot.addListener('message', function(nick, chan, msg) {
-    if (functionalChans.indexOf(chan) > -1) {
-        if (msg.indexOf('o/') != -1) {
-            if (highFive2) {
-                hf2(chan, nick);
-            } else {
-                highFive1 = nick;
-            }
-        } else if (msg.indexOf('\\o') != -1) {
-            if (highFive1) {
-                hf1(chan, nick);
-            } else {
-                highFive2 = nick;
-            }
+bot.addListener('action', function(sender, chan, msg) {
+    if (msg.indexOf('pets ' + config.nick) > -1) {
+        if (friendlyNicks.indexOf(sender) > -1) {
+            bot.say(chan, 'n_n');
+        } else {
+            bot.say(chan, 'NO TOUCHING.');
         }
     }
 });
-
-function hf1(chan, u2) {
-    bot.say(chan, highFive1 + ' o/\\o ' + u2);
-    highFive1 = undefined;
-}
-
-function hf2(chan, u2) {
-    bot.say(chan, u2 + ' o/\\o ' + highFive2);
-    highFive2 = undefined;
-}
