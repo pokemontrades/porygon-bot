@@ -5,6 +5,9 @@ config.js
 logs
 *.log
 
+# IDE stuff
+.idea/
+
 # Runtime data
 pids
 *.pid

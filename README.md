@@ -1,13 +1,12 @@
 # porygon-bot
-An irc bot created by the /r/pokemontrades team (mostly Raia) for use by them. It could be useful for anyone with an irc room, and specifically who are moderators of a subreddit, as that is what this is focused around.
+An irc bot created by the /r/pokemontrades team for our use. It could be useful for anyone with a small irc channel consisting of a static group, specifically moderators of a subreddit.
 
 ## Features
 * High Five
-* Msg
+* !msg
 
 ## Upcoming
 * Search modmail
-
 
 ## Installation
 * `npm install`

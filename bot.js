@@ -13,12 +13,12 @@ var db = mysql.createConnection({
 var functionalChans = config.channels;
 
 var bot = new irc.Client(config.server, config.nick, {
-    userName: config.username,
-    realName: config.realname,
+    userName: config.userName,
+    realName: config.realName,
     port: config.port,
-    secure: true,
-    selfSigned: true,
-    certExpired: true,
+    secure: config.secure,
+    selfSigned: config.selfSigned,
+    certExpired: config.certExpired,
     encoding: 'UTF-8',
     password: config.password
 });
@@ -135,8 +135,7 @@ bot.addListener('join', function(chan, nick) {
                 var to = (message.IsPrivate) ? nick : chan;
                 bot.say(to, nick + ": " + message.MessageText + " (from " +
                 message.SenderName + ", " + message.MessageDate + " UTC)");
-                var msgid = message.MessageID;
-                db.query('DELETE FROM Message WHERE MessageID = ' + msgid, function(err, result) {
+                db.query('DELETE FROM Message WHERE MessageID = ' + message.MessageID, function(err, result) {
                     if (err) console.log(err);
                     console.log('deleted ' + result.affectedRows + ' rows');
                 });
@@ -148,12 +147,12 @@ bot.addListener('join', function(chan, nick) {
 
 var friendlyNicks = config.friendly;
 
-bot.addListener('action', function(sender, chan, msg) {
-    if (msg.indexOf('pets ' + config.nick) > -1) {
+bot.addListener('action', function(sender, chan, line) {
+    if (line.indexOf('pets ' + config.nick) > -1) {
         if (friendlyNicks.indexOf(sender) > -1) {
             bot.say(chan, 'n_n');
         } else {
-            bot.say(chan, 'NO TOUCHING.');
+            bot.say(chan, 'NO TOUCHING');
         }
     }
 });

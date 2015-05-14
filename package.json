@@ -1,7 +1,7 @@
 {
   "name": "porygon-bot",
   "version": "0.1.0",
-  "description": "An irc bot for /r/pokemontrades",
+  "description": "An irc bot for /r/pokemontrades moderators",
   "author": "Raia",
   "contributors": [{
     "name": "Alistair McKinlay"
