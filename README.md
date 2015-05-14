@@ -10,7 +10,9 @@ An irc bot created by the /r/pokemontrades team (mostly Raia) for use by them. I
 
 
 ## Installation
-* npm install
+* `npm install`
+* `mv config.default.js config.js`
+* edit config.js and update information
 
 ## Usage
-* node bot.js
+* `node bot.js`
