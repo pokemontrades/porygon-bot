@@ -1,0 +1,15 @@
+{
+  "name": "porygon-bot",
+  "version": "0.1.0",
+  "description": "An irc bot for /r/pokemontrades",
+  "author": "Raia",
+  "contributors": [{
+    "name": "Alistair McKinlay"
+  }],
+  "dependencies": {
+    "irc": "~0.3.0",
+    "mysql": "~2.7.0"
+  },
+  "repository": "https://github.com/NotRaia/porygon-bot",
+  "bugs": "https://github.com/NotRaia/porygon-bot/issues"
+}
