@@ -7,3 +7,10 @@ An irc bot created by the /r/pokemontrades team (mostly Raia) for use by them. I
 
 ## Upcoming
 * Search modmail
+
+
+## Installation
+* npm install
+
+## Usage
+* node bot.js
