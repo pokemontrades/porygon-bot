@@ -64,9 +64,9 @@ function hf2(chan, u2) {
     highFive2 = undefined;
 }
 
-bot.addListener('message', function(sender, chan, line) {
-    if (line.indexOf('!msg') == 0) {
-        var message = getMessage(line);
+bot.addListener('message', function(sender, chan, text) {
+    if (text.indexOf('!msg') == 0) {
+        var message = getMessage(text);
 
         // no empty messages
         if (message[0] && message[1].trim().length > 0) {
@@ -102,13 +102,13 @@ bot.addListener('message', function(sender, chan, line) {
         }
     } else { // end of !msg
         if (functionalChans.indexOf(chan) > -1) {
-            if (line.indexOf('o/') != -1) {
+            if (text.indexOf('o/') != -1) {
                 if (highFive2) {
                     hf2(chan, sender);
                 } else {
                     highFive1 = sender;
                 }
-            } else if (line.indexOf('\\o') != -1) {
+            } else if (text.indexOf('\\o') != -1) {
                 if (highFive1) {
                     hf1(chan, sender);
                 } else {
@@ -116,8 +116,8 @@ bot.addListener('message', function(sender, chan, line) {
                 }
             } // end of high fives
 
-            line = line.toLowerCase();
-            if (line.indexOf('gib pokélist') != -1 || line.indexOf('gib pokelist') != -1) {
+            text = text.toLowerCase();
+            if (text.indexOf('gib pokélist') != -1 || text.indexOf('gib pokelist') != -1) {
                 bot.say(chan, "http://i.imgur.com/xixihlD.png (づ￣ ³￣)づ");
             }
         }
@@ -147,8 +147,8 @@ bot.addListener('join', function(chan, nick) {
 
 var friendlyNicks = config.friendly;
 
-bot.addListener('action', function(sender, chan, line) {
-    if (line.indexOf('pets ' + config.nick) > -1) {
+bot.addListener('action', function(sender, chan, text) {
+    if (text.indexOf('pets ' + config.nick) > -1) {
         if (friendlyNicks.indexOf(sender) > -1) {
             bot.say(chan, 'n_n');
         } else {
