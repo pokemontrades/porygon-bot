@@ -13,5 +13,8 @@ module.exports = {
   dbPassword: "super-secret-password",
   database: "porygon_bot",
   channels: ["#ircroom"],
-  friendly: ["coolperson1", "coolperson2"]
+  friendly: ["coolperson1", "coolperson2"],
+  commands : {
+    ".blah" : "bot response"
+  }
 };

@@ -17,6 +17,7 @@ var bot = new irc.Client(config.server, config.nick, {
     realName: config.realName,
     port: config.port,
     secure: config.secure,
+    channels : config.channels,
     selfSigned: config.selfSigned,
     certExpired: config.certExpired,
     encoding: 'UTF-8',
@@ -120,6 +121,13 @@ bot.addListener('message', function(sender, chan, text) {
             if (text.indexOf('gib pokélist') != -1 || text.indexOf('gib pokelist') != -1) {
                 bot.say(chan, "http://i.imgur.com/xixihlD.png (づ￣ ³￣)づ");
             }
+
+            var commands = config.commands;
+            if (commands[text]) {
+                bot.say(chan, commands[text]);
+            }
+            // other text commands
+
         }
     }
 });
