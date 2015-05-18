@@ -17,6 +17,7 @@ var bot = new irc.Client(config.server, config.nick, {
     realName: config.realName,
     port: config.port,
     secure: config.secure,
+    channels: config.channels, // remove after testing
     selfSigned: config.selfSigned,
     certExpired: config.certExpired,
     encoding: 'UTF-8',
@@ -121,11 +122,13 @@ bot.addListener('message', function(sender, chan, text) {
                 bot.say(chan, "http://i.imgur.com/xixihlD.png (づ￣ ³￣)づ");
             }
 
+            // . commands
             var commands = config.commands;
-            if (commands[text]) {
-                bot.say(chan, commands[text]);
+            if (text.indexOf('.') == 0) {
+                if (commands[text]) {
+                    bot.say(chan, commands[text]);
+                }
             }
-            // other text commands
 
         }
     }
