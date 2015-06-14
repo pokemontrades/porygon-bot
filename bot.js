@@ -23,6 +23,8 @@ var bot = new irc.Client(config.server, config.nick, {
     password: config.password
 });
 
+var commands = config.commands;
+
 bot.on('error', function(e) {
     console.log(e);
 });
@@ -65,6 +67,8 @@ function hf2(chan, u2) {
 }
 
 bot.addListener('message', function(sender, chan, text) {
+    checkMessages(chan, sender);
+
     if (text.indexOf('!msg') == 0) {
         var message = getMessage(text);
 
@@ -122,7 +126,6 @@ bot.addListener('message', function(sender, chan, text) {
             }
 
             // . commands
-            var commands = config.commands;
             if (text.indexOf('.') == 0) {
                 if (commands[text]) {
                     bot.say(chan, commands[text]);
@@ -135,22 +138,7 @@ bot.addListener('message', function(sender, chan, text) {
 
 bot.addListener('join', function(chan, nick) {
     if (functionalChans.indexOf(chan) > -1) {
-        db.query('SELECT * from Message M ' +
-        'JOIN User U ON M.TargetID = U.UserID ' +
-        'JOIN Nick N ON U.UserID = N.UserID ' +
-        'WHERE N.Nickname LIKE ? GROUP BY M.MessageID', ['%'+nick+'%'], function(error, results) {
-            for (var i in results) {
-                var message = results[i];
-                var to = (message.IsPrivate) ? nick : chan;
-                bot.say(to, nick + ": " + message.MessageText + " (from " +
-                message.SenderName + ", " + message.MessageDate + " UTC)");
-                db.query('DELETE FROM Message WHERE MessageID = ' + message.MessageID, function(err, result) {
-                    if (err) console.log(err);
-                    console.log('deleted ' + result.affectedRows + ' rows');
-                });
-
-            }
-        });
+        checkMessages(chan, nick);
     }
 });
 
@@ -165,3 +153,22 @@ bot.addListener('action', function(sender, chan, text) {
         }
     }
 });
+
+function checkMessages(chan, nick) {
+    db.query('SELECT * from Message M ' +
+    'JOIN User U ON M.TargetID = U.UserID ' +
+    'JOIN Nick N ON U.UserID = N.UserID ' +
+    'WHERE N.Nickname LIKE ? GROUP BY M.MessageID', ['%'+nick+'%'], function(error, results) {
+        for (var i in results) {
+            var message = results[i];
+            var to = (message.IsPrivate) ? nick : chan;
+            bot.say(to, nick + ": " + message.MessageText + " (from " +
+            message.SenderName + ", " + message.MessageDate + " UTC)");
+            db.query('DELETE FROM Message WHERE MessageID = ' + message.MessageID, function(err, result) {
+                if (err) console.log(err);
+                console.log('deleted ' + result.affectedRows + ' rows');
+            });
+
+        }
+    });
+}
