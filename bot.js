@@ -69,7 +69,7 @@ function hf2(chan, u2) {
 bot.addListener('message', function(sender, chan, text) {
     checkMessages(chan, sender);
 
-    if (text.indexOf('!msg') == 0) {
+    if (text.indexOf('msg') == 1) {
         var message = getMessage(text);
 
         // no empty messages
@@ -85,10 +85,15 @@ bot.addListener('message', function(sender, chan, text) {
                         '(?, ?, ?)';
                         params = [mainInfo.UserID, sender, text];
                     } else if (chan == config.nick) { // PM
-                        sql = 'INSERT INTO Message (TargetID, SenderName, MessageText, IsPrivate) VALUES ' +
-                        '(?, ?, ?, ?)';
-                        params = [mainInfo.UserID, sender, text, 1];
-                        chan = sender;
+                        var from = getMain(sender); // make sure the sender is a mod
+                        if (from) {
+                            sql = 'INSERT INTO Message (TargetID, SenderName, MessageText, IsPrivate) VALUES ' +
+                            '(?, ?, ?, ?)';
+                            params = [mainInfo.UserID, sender, text, 1];
+                            chan = sender;
+                        } else {
+                            return;
+                        }
                     }
 
                     db.query(sql, params, function (err) {
