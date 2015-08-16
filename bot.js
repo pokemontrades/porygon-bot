@@ -52,7 +52,7 @@ function getMessage(line) {
 function saveMessage(chan, sql, params, nick) {
     db.query(sql, params, function (err) {
         if (err) {
-            console.log(err);
+            console.log(new Date().toString(), err);
             error(chan);
         } else {
             bot.say(chan, "Saved message for " + nick + ". Beep boop.");
@@ -181,7 +181,7 @@ function checkMessages(chan, nick) {
             message.SenderName + ", " + message.MessageDate + " UTC)");
             db.query('DELETE FROM Message WHERE MessageID = ' + message.MessageID, function(err, result) {
                 if (err) console.log(err);
-                console.log('deleted ' + result.affectedRows + ' rows');
+                //console.log('deleted ' + result.affectedRows + ' rows');
             });
 
         }
