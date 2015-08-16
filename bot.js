@@ -85,15 +85,17 @@ bot.addListener('message', function(sender, chan, text) {
                         '(?, ?, ?)';
                         params = [mainInfo.UserID, sender, text];
                     } else if (chan == config.nick) { // PM
-                        var from = getMain(sender); // make sure the sender is a mod
-                        if (from) {
-                            sql = 'INSERT INTO Message (TargetID, SenderName, MessageText, IsPrivate) VALUES ' +
-                            '(?, ?, ?, ?)';
-                            params = [mainInfo.UserID, sender, text, 1];
-                            chan = sender;
-                        } else {
-                            return;
-                        }
+                        getMain(sender, function(senderInfo) {
+                            if (senderInfo) {
+                                sql = 'INSERT INTO Message (TargetID, SenderName, MessageText, IsPrivate) VALUES ' +
+                                '(?, ?, ?, ?)';
+                                params = [mainInfo.UserID, sender, text, 1];
+                                chan = sender;
+                            } else {
+                                return;
+                            }
+
+                        }); // make sure the sender is a mod
                     }
 
                     db.query(sql, params, function (err) {
@@ -110,6 +112,7 @@ bot.addListener('message', function(sender, chan, text) {
             });
         }
     } else { // end of !msg
+    	text = text.toLowerCase();
         if (functionalChans.indexOf(chan) > -1) {
             if (text.indexOf('o/') != -1) {
                 if (highFive2) {
@@ -125,7 +128,7 @@ bot.addListener('message', function(sender, chan, text) {
                 }
             } // end of high fives
 
-            text = text.toLowerCase();
+            
             if (text.indexOf('gib pokélist') != -1 || text.indexOf('gib pokelist') != -1) {
                 bot.say(chan, "http://i.imgur.com/xixihlD.png (づ￣ ³￣)づ");
             }
