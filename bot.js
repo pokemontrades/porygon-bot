@@ -49,6 +49,17 @@ function getMessage(line) {
     return [sub.substring(0, space), sub.substring(space+1)];
 }
 
+function saveMessage(chan, sql, params, nick) {
+    db.query(sql, params, function (err) {
+        if (err) {
+            console.log(err);
+            error(chan);
+        } else {
+            bot.say(chan, "Saved message for " + nick + ". Beep boop.");
+        }
+    });
+}
+
 function error(chan) {
     bot.say(chan, 'There was an error. Do I even know that person?');
 }
@@ -78,34 +89,25 @@ bot.addListener('message', function(sender, chan, text) {
             var params;
             var user = message[0];
             var text = message[1];
+
             getMain(user, function(mainInfo) {
                 if (mainInfo) {
                     if (functionalChans.indexOf(chan) > -1) { // not a PM
                         sql = 'INSERT INTO Message (TargetID, SenderName, MessageText) VALUES ' +
                         '(?, ?, ?)';
                         params = [mainInfo.UserID, sender, text];
-                    } else if (chan == config.nick) { // PM
+                        saveMessage(chan, sql, params, mainInfo.MainNick);
+                    } else if (chan.toLowerCase() == config.nick.toLowerCase()) { // PM
                         getMain(sender, function(senderInfo) {
                             if (senderInfo) {
                                 sql = 'INSERT INTO Message (TargetID, SenderName, MessageText, IsPrivate) VALUES ' +
                                 '(?, ?, ?, ?)';
                                 params = [mainInfo.UserID, sender, text, 1];
-                                chan = sender;
-                            } else {
-                                return;
+                                saveMessage(sender, sql, params, mainInfo.MainNick);
                             }
-
                         }); // make sure the sender is a mod
                     }
 
-                    db.query(sql, params, function (err) {
-                        if (err) {
-                            console.log(err);
-                            error(chan);
-                        } else {
-                            bot.say(chan, "Saved message for " + mainInfo.MainNick + ". Beep boop.");
-                        }
-                    });
                 } else {
                     error(chan);
                 }
@@ -165,6 +167,9 @@ bot.addListener('action', function(sender, chan, text) {
 });
 
 function checkMessages(chan, nick) {
+    if (chan.toLowerCase() == config.nick.toLowerCase()) {
+        chan = nick;
+    }
     db.query('SELECT * from Message M ' +
     'JOIN User U ON M.TargetID = U.UserID ' +
     'JOIN Nick N ON U.UserID = N.UserID ' +
