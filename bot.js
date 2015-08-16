@@ -137,6 +137,7 @@ bot.addListener('message', function(sender, chan, text) {
 
             // . commands
             if (text.indexOf('.') == 0) {
+                text = text.trim();
                 if (commands[text]) {
                     bot.say(chan, commands[text]);
                 }
@@ -159,7 +160,7 @@ bot.addListener('action', function(sender, chan, text) {
 
     if (text.indexOf('pets ' + config.nick) > -1) {
         if (friendlyNicks.indexOf(sender) > -1) {
-            bot.say(chan, 'n_n');
+            bot.say(chan, commands.pet[Math.floor(Math.random() * commands.pet.length)]);
         } else {
             bot.say(chan, 'NO TOUCHING');
         }
