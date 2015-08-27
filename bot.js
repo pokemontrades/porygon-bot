@@ -116,20 +116,21 @@ bot.addListener('message', function(sender, chan, text) {
     } else { // end of !msg
     	text = text.toLowerCase();
         if (functionalChans.indexOf(chan) > -1) {
-            if (text.indexOf('o/') != -1) {
-                if (highFive2) {
-                    hf2(chan, sender);
-                } else {
-                    highFive1 = sender;
-                }
-            } else if (text.indexOf('\\o') != -1) {
-                if (highFive1) {
-                    hf1(chan, sender);
-                } else {
-                    highFive2 = sender;
-                }
-            } // end of high fives
-
+            if (text.indexOf('\\o/') == -1) {
+                if (text.indexOf('o/') != -1) {
+                    if (highFive2) {
+                        hf2(chan, sender);
+                    } else {
+                        highFive1 = sender;
+                    }
+                } else if (text.indexOf('\\o') != -1) {
+                    if (highFive1) {
+                        hf1(chan, sender);
+                    } else {
+                        highFive2 = sender;
+                    }
+                } // end of high fives
+            }
             
             if (text.indexOf('gib pokélist') != -1 || text.indexOf('gib pokelist') != -1) {
                 bot.say(chan, "http://i.imgur.com/xixihlD.png (づ￣ ³￣)づ");
