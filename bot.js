@@ -153,17 +153,11 @@ bot.addListener('join', function(chan, nick) {
     }
 });
 
-var friendlyNicks = config.friendly;
-
 bot.addListener('action', function(sender, chan, text) {
     checkMessages(chan, sender);
 
     if (text.indexOf('pets ' + config.nick) > -1) {
-        if (friendlyNicks.indexOf(sender) > -1) {
-            bot.say(chan, commands.pet[Math.floor(Math.random() * commands.pet.length)]);
-        } else {
-            bot.say(chan, 'NO TOUCHING');
-        }
+        bot.say(chan, 'n_n');
     }
 });
 
