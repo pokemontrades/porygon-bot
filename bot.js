@@ -1,6 +1,7 @@
 var irc = require('irc');
 var mysql = require('mysql');
 var config = require('./config');
+var sha1 = require('node-sha1');
 
 var db = mysql.createConnection({
     host: config.dbHost,
@@ -114,7 +115,7 @@ bot.addListener('message', function(sender, chan, text) {
             });
         }
     } else { // end of !msg
-    	text = text.toLowerCase();
+        text = text.toLowerCase();
         if (functionalChans.indexOf(chan) > -1) {
             if (text.indexOf('\\o/') == -1) {
                 if (text.indexOf('o/') != -1) {
@@ -138,9 +139,18 @@ bot.addListener('message', function(sender, chan, text) {
 
             // . commands
             if (text.indexOf('.') == 0) {
-                text = text.trim();
-                if (commands[text]) {
-                    bot.say(chan, commands[text]);
+                if (text.indexOf('checkfc ') == 1) {
+                    var fc = text.substr(9).trim();
+                    if (!fc.match(/^\d{4}-?\d{4}-?\d{4}$/)) {
+                        bot.say(chan, 'The input given was not in a valid friend code format')
+                    } else {
+                        bot.say(chan, 'Friend code: '+fc+' - Valid? '+(validate_fc(fc) ? 'YES':'NO'));
+                    }
+                } else {
+                    text = text.trim();
+                    if (commands[text]) {
+                        bot.say(chan, commands[text]);
+                    }
                 }
             }
 
@@ -182,4 +192,21 @@ function checkMessages(chan, nick) {
 
         }
     });
+}
+
+function validate_fc(fc) {
+    fc = fc.replace(/-/g,'');
+    if (!fc.match(/^\d{12}$/) || fc > 549755813887) {
+        return 0;
+    }
+    var checksum = Math.floor(fc/4294967296);
+    var byte_seq = (fc % 4294967296).toString(16)
+    while (byte_seq.length < 8) { byte_seq = "0"+byte_seq; }
+    var byte_arr = byte_seq.match(/../g).reverse();
+    var hash_seq = ""
+    for (var i = 0; i < 4; i++) {
+        hash_seq += String.fromCharCode(parseInt(byte_arr[i],16));
+    }
+    var new_chk = (parseInt(sha1(hash_seq).substring(0,2),16) >> 1);
+    return (new_chk == checksum)?1:0;
 }

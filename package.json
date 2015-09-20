@@ -3,12 +3,18 @@
   "version": "0.1.0",
   "description": "An irc bot for /r/pokemontrades moderators",
   "author": "Raia",
-  "contributors": [{
-    "name": "Alistair McKinlay"
-  }],
+  "contributors": [
+    {
+      "name": "Alistair McKinlay"
+    },
+    {
+      "name": "SnowPhoenix"
+    }
+  ],
   "dependencies": {
     "irc": "~0.3.0",
-    "mysql": "~2.7.0"
+    "mysql": "~2.7.0",
+    "node-sha1": "^1.0.1"
   },
   "repository": "https://github.com/NotRaia/porygon-bot",
   "bugs": "https://github.com/NotRaia/porygon-bot/issues"
