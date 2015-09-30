@@ -16,6 +16,7 @@ var functionalChans = config.channels;
 var bot = new irc.Client(config.server, config.nick, {
     userName: config.userName,
     realName: config.realName,
+    // channels: config.channels,
     port: config.port,
     secure: config.secure,
     selfSigned: config.selfSigned,
@@ -93,28 +94,34 @@ bot.addListener('message', function(sender, chan, text) {
             var user = message[0];
             var text = message[1];
 
-            getMain(user, function(mainInfo) {
-                if (mainInfo) {
-                    if (functionalChans.indexOf(chan) > -1) { // not a PM
-                        sql = 'INSERT INTO Message (TargetID, SenderName, MessageText) VALUES ' +
-                        '(?, ?, ?)';
-                        params = [mainInfo.UserID, sender, text];
-                        saveMessage(chan, sql, params, mainInfo.MainNick);
-                    } else if (chan.toLowerCase() == config.nick.toLowerCase()) { // PM
-                        getMain(sender, function(senderInfo) {
-                            if (senderInfo) {
-                                sql = 'INSERT INTO Message (TargetID, SenderName, MessageText, IsPrivate) VALUES ' +
-                                '(?, ?, ?, ?)';
-                                params = [mainInfo.UserID, sender, text, 1];
-                                saveMessage(sender, sql, params, mainInfo.MainNick);
-                            }
-                        }); // make sure the sender is a mod
-                    }
+            if (user == config.nick) {
+                bot.action(chan, 'slaps ' + sender + '.');
+            } else {
+                getMain(user, function(mainInfo) {
+                    if (mainInfo) {
+                        if (functionalChans.indexOf(chan) > -1) { // not a PM
+                            sql = 'INSERT INTO Message (TargetID, SenderName, MessageText) VALUES ' +
+                            '(?, ?, ?)';
+                            params = [mainInfo.UserID, sender, text];
+                            saveMessage(chan, sql, params, mainInfo.MainNick);
+                        } else if (chan.toLowerCase() == config.nick.toLowerCase()) { // PM
+                            getMain(sender, function(senderInfo) {
+                                if (senderInfo) {
+                                    sql = 'INSERT INTO Message (TargetID, SenderName, MessageText, IsPrivate) VALUES ' +
+                                    '(?, ?, ?, ?)';
+                                    params = [mainInfo.UserID, sender, text, 1];
+                                    saveMessage(sender, sql, params, mainInfo.MainNick);
+                                }
+                            }); // make sure the sender is a mod
+                        }
 
-                } else {
-                    error(chan);
-                }
-            });
+                    } else {
+                        error(chan);
+                    }
+                });
+            }
+
+
         }
     } else { // end of !msg
         text = text.toLowerCase();
