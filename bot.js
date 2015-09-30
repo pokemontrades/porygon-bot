@@ -81,9 +81,48 @@ function hf2(chan, u2) {
     highFive2 = undefined;
 }
 
+function checkMessages(chan, nick) {
+    if (chan.toLowerCase() == config.nick.toLowerCase()) {
+        chan = nick;
+    }
+    db.query('SELECT * from Message M ' +
+    'JOIN User U ON M.TargetID = U.UserID ' +
+    'JOIN Nick N ON U.UserID = N.UserID ' +
+    'WHERE N.Nickname LIKE ? GROUP BY M.MessageID', ['%'+nick+'%'], function(error, results) {
+        for (var i in results) {
+            var message = results[i];
+            var to = (message.IsPrivate) ? nick : chan;
+            bot.say(to, nick + ": " + message.MessageText + " (from " +
+            message.SenderName + ", " + message.MessageDate + " UTC)");
+            db.query('DELETE FROM Message WHERE MessageID = ' + message.MessageID, function(err, result) {
+                if (err) console.log(err);
+            });
+
+        }
+    });
+}
+
+function validate_fc(fc) {
+    fc = fc.replace(/-/g,'');
+    if (!fc.match(/^\d{12}$/) || fc > 549755813887) {
+        return 0;
+    }
+    var checksum = Math.floor(fc/4294967296);
+    var byte_seq = (fc % 4294967296).toString(16)
+    while (byte_seq.length < 8) { byte_seq = "0"+byte_seq; }
+    var byte_arr = byte_seq.match(/../g).reverse();
+    var hash_seq = ""
+    for (var i = 0; i < 4; i++) {
+        hash_seq += String.fromCharCode(parseInt(byte_arr[i],16));
+    }
+    var new_chk = (parseInt(sha1(hash_seq).substring(0,2),16) >> 1);
+    return (new_chk == checksum)?1:0;
+}
+
 bot.addListener('message', function(sender, chan, text) {
     checkMessages(chan, sender);
 
+    // !msg
     if (text.indexOf('msg') == 1 || text.indexOf('tell') == 1) {
         var message = getMessage(text);
 
@@ -94,7 +133,7 @@ bot.addListener('message', function(sender, chan, text) {
             var user = message[0];
             var text = message[1];
 
-            if (user == config.nick) {
+            if (user.toLowerCase() == config.nick.toLowerCase()) {
                 bot.action(chan, 'slaps ' + sender + '.');
             } else {
                 getMain(user, function(mainInfo) {
@@ -180,42 +219,3 @@ bot.addListener('action', function(sender, chan, text) {
         bot.say(chan, 'n_n');
     }
 });
-
-function checkMessages(chan, nick) {
-    if (chan.toLowerCase() == config.nick.toLowerCase()) {
-        chan = nick;
-    }
-    db.query('SELECT * from Message M ' +
-    'JOIN User U ON M.TargetID = U.UserID ' +
-    'JOIN Nick N ON U.UserID = N.UserID ' +
-    'WHERE N.Nickname LIKE ? GROUP BY M.MessageID', ['%'+nick+'%'], function(error, results) {
-        for (var i in results) {
-            var message = results[i];
-            var to = (message.IsPrivate) ? nick : chan;
-            bot.say(to, nick + ": " + message.MessageText + " (from " +
-            message.SenderName + ", " + message.MessageDate + " UTC)");
-            db.query('DELETE FROM Message WHERE MessageID = ' + message.MessageID, function(err, result) {
-                if (err) console.log(err);
-                //console.log('deleted ' + result.affectedRows + ' rows');
-            });
-
-        }
-    });
-}
-
-function validate_fc(fc) {
-    fc = fc.replace(/-/g,'');
-    if (!fc.match(/^\d{12}$/) || fc > 549755813887) {
-        return 0;
-    }
-    var checksum = Math.floor(fc/4294967296);
-    var byte_seq = (fc % 4294967296).toString(16)
-    while (byte_seq.length < 8) { byte_seq = "0"+byte_seq; }
-    var byte_arr = byte_seq.match(/../g).reverse();
-    var hash_seq = ""
-    for (var i = 0; i < 4; i++) {
-        hash_seq += String.fromCharCode(parseInt(byte_arr[i],16));
-    }
-    var new_chk = (parseInt(sha1(hash_seq).substring(0,2),16) >> 1);
-    return (new_chk == checksum)?1:0;
-}
