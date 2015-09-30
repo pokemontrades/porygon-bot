@@ -45,7 +45,9 @@ function getMain(nick, callback) {
 }
 
 function getMessage(line) {
-    var sub = line.substring(5);
+    var start = 5;
+    if (line.indexOf('tell') == 1) start++;
+    var sub = line.substring(start);
     var space = sub.indexOf(" ");
     return [sub.substring(0, space), sub.substring(space+1)];
 }
@@ -81,7 +83,7 @@ function hf2(chan, u2) {
 bot.addListener('message', function(sender, chan, text) {
     checkMessages(chan, sender);
 
-    if (text.indexOf('msg') == 1) {
+    if (text.indexOf('msg') == 1 || text.indexOf('tell') == 1) {
         var message = getMessage(text);
 
         // no empty messages
