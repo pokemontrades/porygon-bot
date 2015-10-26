@@ -2,6 +2,7 @@ var irc = require('irc');
 var mysql = require('mysql');
 var config = require('./config');
 var sha1 = require('node-sha1');
+var ball_data = require('./ball_data')
 
 var db = mysql.createConnection({
     host: config.dbHost,
@@ -193,6 +194,36 @@ bot.addListener('message', function(sender, chan, text) {
                         bot.say(chan, 'The input given was not in a valid friend code format')
                     } else {
                         bot.say(chan, 'Friend code: '+fc+' - Valid? '+(validate_fc(fc) ? 'YES':'NO'));
+                    }
+                } else if (text.indexOf('checkball ') == 1) {
+                    var params = text.substr(11).trim().split(' ');
+                    if (params.length == 1) {
+                        var species = params[0].toLowerCase();
+                        if (ball_data.legal[species]) {
+                            var response='Legal balls for ' + params[0] + ': ';
+                            for (var i = 0; i < ball_data.legal[species].length; i++) {
+                                response += ball_data.legal[species][i] + ', ';
+                            }
+                            bot.say(chan, response.slice(0,-2));
+                        } else {
+                            bot.say(chan, "No pokemon data found for '" + params[0] + "'");
+                        }
+                    } else if (params.length == 2 || (params.length == 3 && params[2].toLowerCase() === 'ball')) {
+                        var species = params[0].toLowerCase();
+                        var ball = params[1].toLowerCase();
+                        if (ball_data.types.indexOf(ball) == -1) {
+                            bot.say(chan, "Ball type '" + params[1] + "' not recognized.");
+                        }
+                        else if (ball_data.legal[species]) {
+                            var formattedSpecies = params[0].slice(0,1).toUpperCase() + params[0].slice(1);
+                            var formattedBall = params[1].slice(0,1).toUpperCase() + params[1].slice(1) + ' Ball '
+                            var response = formattedBall + formattedSpecies + ' - Legal? ' + (ball_data.legal[species].indexOf(ball) > -1 ? 'YES':'NO');
+                            bot.say(chan, response);
+                        } else {
+                            bot.say(chan, "No pokemon data found for '" + params[0] + "'");
+                        }
+                    } else {
+                        bot.say(chan, "Usage: .checkball <pokemon> [balltype]");
                     }
                 } else {
                     text = text.trim();
