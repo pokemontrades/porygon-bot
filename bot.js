@@ -206,7 +206,7 @@ bot.addListener('message', function(sender, chan, text) {
                             }
                             bot.say(chan, response.slice(0,-2));
                         } else {
-                            bot.say(chan, "No Pokémon data found for '" + params[0] + ".'");
+                            bot.say(chan, "No Pokémon data found for '" + params[0] + "'.");
                         }
                     } else if (params.length == 2 || (params.length == 3 && params[2].toLowerCase() === 'ball')) {
                         var species = params[0].toLowerCase();
@@ -221,7 +221,7 @@ bot.addListener('message', function(sender, chan, text) {
                             var response = formattedBall + formattedSpecies + ' - Legal? ' + (ball_data.legal[species].indexOf(ball) > -1 ? 'YES':'NO');
                             bot.say(chan, response);
                         } else {
-                            bot.say(chan, "No Pokémon data found for '" + params[0] + ".'");
+                            bot.say(chan, "No Pokémon data found for '" + params[0] + "'.");
                         }
                     } else {
                         bot.say(chan, "Usage: .checkball <Pokémon> [balltype]");
