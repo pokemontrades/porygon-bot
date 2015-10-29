@@ -3,7 +3,8 @@ var mysql = require('mysql');
 var config = require('./config');
 var sha1 = require('node-sha1');
 var ball_data = require('./ball_data')
-var ball_types = ['poké','great','ultra','master','net','dive','nest','repeat','timer','luxury','premier','dusk','heal','quick','safari','fast','level','lure','heavy','love','friend','moon','sport','dream','cherish'];
+var ball_types = ['poké','great','ultra','master','net','dive','nest','repeat','timer','luxury','premier','dusk','heal','quick','safari','apricorn','sport','dream','cherish'];
+var apricorns = ['fast','level','lure','heavy','love','friend','moon'];
 
 var db = mysql.createConnection({
     host: config.dbHost,
@@ -166,6 +167,7 @@ bot.addListener('message', function(sender, chan, text) {
         }
     } else { // end of !msg
         text = text.toLowerCase();
+        var to = (functionalChans.indexOf(chan) > -1) ? chan : sender;
         if (functionalChans.indexOf(chan) > -1) {
             if (text.indexOf('\\o/') == -1) {
                 if (text.indexOf('o/') != -1) {
@@ -184,105 +186,104 @@ bot.addListener('message', function(sender, chan, text) {
             }
             
             if (text.indexOf('gib pokélist') != -1 || text.indexOf('gib pokelist') != -1) {
-                bot.say(chan, "http://i.imgur.com/xixihlD.png (づ￣ ³￣)づ");
+                bot.say(to, "http://i.imgur.com/xixihlD.png (づ￣ ³￣)づ");
             }
+        }
 
-            // . commands
-            if (text.indexOf('.') == 0) {
-                if (text.indexOf('checkfc ') == 1) {
-                    var fc = text.substr(9).trim();
-                    if (!fc.match(/^\d{4}-?\d{4}-?\d{4}$/)) {
-                        bot.say(chan, 'The input given was not in a valid friend code format.')
-                    } else {
-                        bot.say(chan, 'Friend code: '+fc+' - Valid? '+(validate_fc(fc) ? 'YES':'NO'));
+        // . commands
+        if (text.indexOf('.') == 0) {
+            if (text.indexOf('checkfc ') == 1) {
+                var fc = text.substr(9).trim();
+                if (!fc.match(/^\d{4}-?\d{4}-?\d{4}$/)) {
+                    bot.say(to, 'The input given was not in a valid friend code format.')
+                } else {
+                    bot.say(to, 'Friend code: '+fc+' - Valid? '+(validate_fc(fc) ? 'YES':'NO'));
+                }
+            } else if (text.indexOf('checkball ') == 1) {
+                var params = text.substr(11).trim().split(' ');
+                var formatted_limitations = function (data) {
+                    if (!data[1] && !data[2]) {
+                        return '* (Cannot be bred)';
                     }
-                } else if (text.indexOf('checkball ') == 1) {
-                    var params = text.substr(11).trim().split(' ');
-                    var formatted_limitations = function (data) {
-                        if (!data[1] && !data[2]) {
-                            return '* (Cannot be bred)';
-                        }
-                        if (!data[1]) {
-                            return '*';
-                        }
-                        if (!data[2]) {
-                            return ' (Cannot be bred)';
-                        }
-                        return '';
+                    if (!data[1]) {
+                        return '*';
                     }
-                    if (params.length == 1) {
-                        var species = params[0].toLowerCase();
-                        if (species === "nidoran-m") species = "nidoran♂";
-                        if (species === "nidoran-f") species = "nidoran♀";
-                        if (ball_data[species]) {
-                            var response = 'Legal balls for ' + species.slice(0,1).toUpperCase() + species.slice(1).toLowerCase() + ': ';
-                            var legality_data = parseBallLegality(ball_data[species]);
-                            var ha_data = '';
-                            var breeding_data = '';
-                            for (var ball in legality_data) {
-                                ha_data += legality_data[ball][1]?'1':'0';
-                                breeding_data += legality_data[ball][2]?'1':'0';
-                            }
-                            for (var ball in legality_data) {
-                                if (legality_data[ball][0]) {
-                                    response += ball.slice(0,1).toUpperCase() + ball.slice(1);
-                                    if (ha_data === '0000000000000000000000000') { //25 zeros
-                                        legality_data[ball][1] = true;
-                                    }
-                                    if (breeding_data.slice(1) === '000000000000000000000000') { //24 zeros
-                                        legality_data[ball][2] = true;
-                                    }
-                                    response += formatted_limitations(legality_data[ball]);
-                                    response += ', '
-                                }
-                            }
-                            response = response.slice(0, -2) + ' ';
-                            if (ha_data === '0000000000000000000000000') { //25 zeros
-                                response += '(HA illegal in all balls) ';
-                            } else if (response.indexOf('*') != -1) {
-                                response += '(* = HA Illegal) ';
-                            }
-                            if (breeding_data === '0000000000000000000000000') { //25 zeros
-                                response += ' (Cannot be bred in any ball) ';
-                            } else if (breeding_data === '1000000000000000000000000') { //1 followed by 24 zeros
-                                response += ' (Can only be bred in Poké Ball) ';
-                            }
-                            bot.say(chan, response.trim());
-                        } else {
-                            bot.say(chan, "No Pokémon data found for '" + params[0] + "'.");
+                    if (!data[2]) {
+                        return ' (Cannot be bred)';
+                    }
+                    return '';
+                }
+                if (params.length == 1) {
+                    var species = params[0];
+                    if (species === "nidoran-m") species = "nidoran♂";
+                    if (species === "nidoran-f") species = "nidoran♀";
+                    if (ball_data[species]) {
+                        var response = 'Legal balls for ' + species.slice(0,1).toUpperCase() + species.slice(1) + ': ';
+                        var legality_data = parseBallLegality(ball_data[species]);
+                        var ha_data = '';
+                        var breeding_data = '';
+                        for (var ball in legality_data) {
+                            ha_data += legality_data[ball][1]?'1':'0';
+                            breeding_data += legality_data[ball][2]?'1':'0';
                         }
-                    } else if (params.length == 2 || (params.length == 3 && params[2].toLowerCase() === 'ball')) {
-                        var species = params[0].toLowerCase();
-                        var ball = params[1].toLowerCase();
-                        if (ball.indexOf("poke") != -1) ball = "poké";
-                        if (species === "nidoran-m") species = "nidoran♂";
-                        if (species === "nidoran-f") species = "nidoran♀";
-                        if (ball_types.indexOf(ball) == -1) {
-                            bot.say(chan, "Ball type '" + ball + "' not recognized.");
-                        }
-                        else if (ball_data[species]) {
-                            var legality_data = parseBallLegality(ball_data[species]);
-                            var formattedSpecies = species.slice(0,1).toUpperCase() + species.slice(1);
-                            var formattedBall = ball.slice(0,1).toUpperCase() + ball.slice(1) + ' Ball '
-                            var response = formattedBall + formattedSpecies + ' - Legal? ' + (legality_data[ball][0]?'YES':'NO');
+                        for (var ball in legality_data) {
                             if (legality_data[ball][0]) {
-                                response += formatted_limitations(legality_data[ball]).replace('*', ' (HA illegal)');
+                                response += ball.slice(0,1).toUpperCase() + ball.slice(1);
+                                if (ha_data === '0000000000000000000') { //19 zeros
+                                    legality_data[ball][1] = true;
+                                }
+                                if (breeding_data.slice(1) === '000000000000000000') { //18 zeros
+                                    legality_data[ball][2] = true;
+                                }
+                                response += formatted_limitations(legality_data[ball]);
+                                response += ', '
                             }
-                            bot.say(chan, response);
-                        } else {
-                            bot.say(chan, "No Pokémon data found for '" + params[0] + "'.");
                         }
+                        response = response.slice(0, -2) + ' ';
+                        if (ha_data === '0000000000000000000') { //19 zeros
+                            response += '(HA illegal in all balls) ';
+                        } else if (response.indexOf('*') != -1) {
+                            response += '(* = HA Illegal) ';
+                        }
+                        if (breeding_data === '0000000000000000000') { //19 zeros
+                            response += ' (Cannot be bred in any ball) ';
+                        } else if (breeding_data === '1000000000000000000') { //1 followed by 18 zeros
+                            response += ' (Can only be bred in Poké Ball) ';
+                        }
+                        bot.say(to, response.trim());
                     } else {
-                        bot.say(chan, "Usage: .checkball <Pokémon> [balltype]");
+                        bot.say(to, "No Pokémon data found for '" + params[0] + "'.");
+                    }
+                } else if (params.length == 2 || (params.length == 3 && params[2] === 'ball')) {
+                    var species = params[0];
+                    var ball = params[1];
+                    if (ball.indexOf("poke") != -1) ball = "poké";
+                    if (species === "nidoran-m") species = "nidoran♂";
+                    if (species === "nidoran-f") species = "nidoran♀";
+                    if (ball_types.indexOf(ball) == -1 && apricorns.indexOf(ball) == -1) {
+                        bot.say(to, "Ball type '" + ball + "' not recognized.");
+                    }
+                    else if (ball_data[species]) {
+                        var legality_data = parseBallLegality(ball_data[species]);
+                        var formattedSpecies = species.slice(0,1).toUpperCase() + species.slice(1);
+                        var formattedBall = ball.slice(0,1).toUpperCase() + ball.slice(1) + ' Ball '
+                        var response = formattedBall + formattedSpecies + ' - Legal? ' + (legality_data[ball][0]?'YES':'NO');
+                        if (legality_data[ball][0]) {
+                            response += formatted_limitations(legality_data[ball]).replace('*', ' (HA illegal)');
+                        }
+                        bot.say(to, response);
+                    } else {
+                        bot.say(to, "No Pokémon data found for '" + params[0] + "'.");
                     }
                 } else {
-                    text = text.trim();
-                    if (commands[text]) {
-                        bot.say(chan, commands[text]);
-                    }
+                    bot.say(to, "Usage: .checkball <Pokémon> [balltype]");
+                }
+            } else {
+                text = text.trim();
+                if (commands[text]) {
+                    bot.say(to, commands[text]);
                 }
             }
-
         }
     }
 });
@@ -291,7 +292,13 @@ var parseBallLegality = function (compressed) {
     var data = {};
     for (var i = 0; i < ball_types.length; i++) {
         var binary = parseInt(compressed.charAt(i)).toString(2);
-        data[ball_types[i]] = [binary.charAt(0) === '1', binary.charAt(1) === '1', binary.charAt(2) === '1'];
+        if (ball_types[i] === 'apricorn') {
+            for (var j = 0; j < apricorns.length; j++) {
+                data[apricorns[j]] = [binary.charAt(0) === '1', binary.charAt(1) === '1', binary.charAt(2) === '1'];
+            }
+        } else {
+            data[ball_types[i]] = [binary.charAt(0) === '1', binary.charAt(1) === '1', binary.charAt(2) === '1'];
+        }
     }
     return data;
 }
