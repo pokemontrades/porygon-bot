@@ -229,10 +229,10 @@ bot.addListener('message', function(sender, chan, text) {
                         for (var ball in legality_data) {
                             if (legality_data[ball][0]) {
                                 response += ball.slice(0,1).toUpperCase() + ball.slice(1);
-                                if (ha_data === '0000000000000000000') { //19 zeros
+                                if (ha_data === '0000000000000000000000000') { //25 zeros
                                     legality_data[ball][1] = true;
                                 }
-                                if (breeding_data.slice(1) === '000000000000000000') { //18 zeros
+                                if (breeding_data.slice(1) === '000000000000000000000000') { //24 zeros
                                     legality_data[ball][2] = true;
                                 }
                                 response += formatted_limitations(legality_data[ball]);
@@ -240,14 +240,14 @@ bot.addListener('message', function(sender, chan, text) {
                             }
                         }
                         response = response.slice(0, -2) + ' ';
-                        if (ha_data === '0000000000000000000') { //19 zeros
+                        if (ha_data === '0000000000000000000000000') { //25 zeros
                             response += '(HA illegal in all balls) ';
                         } else if (response.indexOf('*') != -1) {
                             response += '(* = HA Illegal) ';
                         }
-                        if (breeding_data === '0000000000000000000') { //19 zeros
+                        if (breeding_data === '0000000000000000000000000') { //25 zeros
                             response += ' (Cannot be bred in any ball) ';
-                        } else if (breeding_data === '1000000000000000000') { //1 followed by 18 zeros
+                        } else if (breeding_data === '1000000000000000000000000') { //1 followed by 24 zeros
                             response += ' (Can only be bred in Poké Ball) ';
                         }
                         bot.say(to, response.trim());
@@ -278,10 +278,10 @@ bot.addListener('message', function(sender, chan, text) {
                 } else {
                     bot.say(to, "Usage: .checkball <Pokémon> [balltype]");
                 }
-            } else {
+            } else if (functionalChans.indexOf(chan) > -1) {
                 text = text.trim();
                 if (commands[text]) {
-                    bot.say(chan, commands[text]);
+                    bot.say(to, commands[text]);
                 }
             }
         }
