@@ -186,7 +186,7 @@ bot.addListener('message', function(sender, chan, text) {
             }
             
             if (text.indexOf('gib pokélist') != -1 || text.indexOf('gib pokelist') != -1) {
-                bot.say(to, "http://i.imgur.com/xixihlD.png (づ￣ ³￣)づ");
+                bot.say(chan, "http://i.imgur.com/xixihlD.png (づ￣ ³￣)づ");
             }
         }
 
@@ -278,10 +278,10 @@ bot.addListener('message', function(sender, chan, text) {
                 } else {
                     bot.say(to, "Usage: .checkball <Pokémon> [balltype]");
                 }
-            } else if (functionalChans.indexOf(chan) > -1) {
+            } else {
                 text = text.trim();
                 if (commands[text]) {
-                    bot.say(to, commands[text]);
+                    bot.say(chan, commands[text]);
                 }
             }
         }
