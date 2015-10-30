@@ -278,7 +278,7 @@ bot.addListener('message', function(sender, chan, text) {
                 } else {
                     bot.say(to, "Usage: .checkball <Pokémon> [balltype]");
                 }
-            } else {
+            } else if (functionalChans.indexOf(chan) > -1) {
                 text = text.trim();
                 if (commands[text]) {
                     bot.say(to, commands[text]);
