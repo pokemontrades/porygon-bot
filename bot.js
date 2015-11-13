@@ -19,7 +19,7 @@ var functionalChans = config.channels;
 var bot = new irc.Client(config.server, config.nick, {
     userName: config.userName,
     realName: config.realName,
-    // channels: config.channels,
+     channels: config.channels,
     port: config.port,
     secure: config.secure,
     selfSigned: config.selfSigned,
@@ -105,17 +105,15 @@ bot.addListener('message', function(sender, chan, text) {
         }
 
         // . commands
-        if (text.indexOf('.') == 0) {
-            if (text.indexOf('checkfc ') == 1) {
-                var fc = text.substr(9).trim();
-                if (!fc.match(/^\d{4}-?\d{4}-?\d{4}$/)) {
-                    bot.say(to, 'The input given was not in a valid friend code format.')
-                } else {
-                    bot.say(to, 'Friend code: '+fc+' - Valid? '+(validateFC(fc) ? 'YES':'NO'));
-                }
-            } else if (text.indexOf('checkball ') == 1) {
-                checkBall(text, to);
+        if (text.indexOf('.checkfc') == 0) {
+            var fc = text.substr(9).trim();
+            if (!fc.match(/^\d{4}-?\d{4}-?\d{4}$/)) {
+                bot.say(to, 'The input given was not in a valid friend code format.')
+            } else {
+                bot.say(to, 'Friend code: '+fc+' - Valid? '+(validateFC(fc) ? 'YES':'NO'));
             }
+        } else if (text.indexOf('.checkball ') == 0) {
+            checkBall(text, to);
         } else if (functionalChans.indexOf(chan) > -1) {
             text = text.trim();
             if (commands[text]) {
