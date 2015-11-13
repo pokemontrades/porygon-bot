@@ -19,7 +19,7 @@ var functionalChans = config.channels;
 var bot = new irc.Client(config.server, config.nick, {
     userName: config.userName,
     realName: config.realName,
-     channels: config.channels,
+    // channels: config.channels,
     port: config.port,
     secure: config.secure,
     selfSigned: config.selfSigned,
