@@ -171,7 +171,7 @@ function getMain(nick, callback) {
  */
 function getMessage(line) {
     var start = 5;
-    if (line.indexOf('tell') == 1) start++;
+    if (line.toLowerCase().indexOf('tell') == 1) start++;
     var sub = line.substring(start);
     var space = sub.indexOf(" ");
     return [sub.substring(0, space), sub.substring(space+1)];
