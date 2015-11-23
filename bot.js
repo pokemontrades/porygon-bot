@@ -11,7 +11,7 @@ var db = mysql.createConnection({
     user: config.dbUser,
     password: config.dbPassword,
     database: config.database,
-    timezone: 'UTC'
+    timezone: 'Etc/UTC'
 });
 
 var functionalChans = config.channels;
@@ -19,7 +19,7 @@ var functionalChans = config.channels;
 var bot = new irc.Client(config.server, config.nick, {
     userName: config.userName,
     realName: config.realName,
-    // channels: config.channels,
+ //   channels: config.channels,
     port: config.port,
     secure: config.secure,
     selfSigned: config.selfSigned,
@@ -45,7 +45,7 @@ bot.addListener('message', function(sender, chan, text) {
     checkMessages(chan, sender);
 
     // !msg
-    if (text.indexOf('msg') == 1 || text.indexOf('tell') == 1) {
+    if (text.toLowerCase().indexOf('msg') == 1 || text.toLowerCase().indexOf('tell') == 1) {
         var message = getMessage(text);
 
         // no empty messages
