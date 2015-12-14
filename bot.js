@@ -87,21 +87,19 @@ bot.addListener('message', function(sender, chan, text) {
         text = text.toLowerCase();
         var to = (functionalChans.indexOf(chan) > -1) ? chan : sender;
         if (functionalChans.indexOf(chan) > -1) {
-            if (text.indexOf('\\o/') == -1) {
-                if (text.indexOf('o/') != -1) {
-                    if (highFive2) {
-                        hf2(chan, sender);
-                    } else {
-                        highFive1 = sender;
-                    }
-                } else if (text.indexOf('\\o') != -1) {
-                    if (highFive1) {
-                        hf1(chan, sender);
-                    } else {
-                        highFive2 = sender;
-                    }
-                } // end of high fives
-            }
+            if (text.match(/(^|\s)o\/(\s|$)/)) {
+                if (highFive2) {
+                    hf2(chan, sender);
+                } else {
+                    highFive1 = sender;
+                }
+            } else if (text.match(/(^|\s)\\o(\s|$)/)) {
+                if (highFive1) {
+                    hf1(chan, sender);
+                } else {
+                    highFive2 = sender;
+                }
+            } // end of high fives
         }
 
         // . commands
