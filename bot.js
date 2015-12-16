@@ -112,6 +112,11 @@ bot.addListener('message', function(sender, chan, text) {
             }
         } else if (text.indexOf('.checkball ') == 0) {
             checkBall(text, to);
+        } else if (functionalChans.indexOf(chan) > -1 && text.indexOf('.modmail') == 0 && text.indexOf(" ") > -1) {
+            bot.say(to, "http://hq.porygon.co/search/modmail/"
+                +encodeURIComponent(text.substr(text.indexOf(" ")).trim())
+                    .replace(/[!'()*.]/g, function(c) {return '%' + c.charCodeAt(0).toString(16);})
+            );
         } else if (functionalChans.indexOf(chan) > -1) {
             text = text.trim();
             if (commands[text]) {
