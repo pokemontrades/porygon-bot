@@ -8,6 +8,7 @@ module.exports = {
   userName: "porygon-bot",
   realName: "Porygon",
   password: "super-secret-password",
+  disable_db: false,
   dbHost: "http://localhost",
   dbUser: "mysql",
   dbPassword: "super-secret-password",

@@ -1,6 +1,9 @@
 # Config file
 config.js
 
+# Secret commands
+commands/*.secret.js
+
 # Logs
 logs
 *.log

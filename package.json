@@ -16,6 +16,7 @@
   ],
   "dependencies": {
     "irc": "~0.3.0",
+    "lodash": "^3.10.1",
     "mysql": "~2.7.0",
     "node-sha1": "^1.0.1"
   },
