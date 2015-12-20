@@ -1,25 +1,30 @@
 var irc = require('irc');
 var mysql = require('mysql');
 var config = require('./config');
-var sha1 = require('node-sha1');
-var ball_data = require('./ball_data');
-var ball_types = ['poké','great','ultra','master','net','dive','nest','repeat','timer','luxury','premier','dusk','heal','quick','safari','apricorn','sport','dream','cherish'];
-var apricorns = ['fast','level','lure','heavy','love','friend','moon'];
+var commands = require('./commands');
 
-var db = mysql.createConnection({
-    host: config.dbHost,
-    user: config.dbUser,
-    password: config.dbPassword,
-    database: config.database,
-    timezone: 'Etc/UTC'
-});
+var db;
+if (!config.disable_db) {
+    db = mysql.createConnection({
+        host: config.dbHost,
+        user: config.dbUser,
+        password: config.dbPassword,
+        database: config.database,
+        timezone: 'Etc/UTC'
+    });
+    db.connect(function (e) {
+        if (e) {
+            console.error('error connecting: ' + e.stack);
+        }
+    })
+}
 
 var functionalChans = config.channels;
 
 var bot = new irc.Client(config.server, config.nick, {
     userName: config.userName,
     realName: config.realName,
- //   channels: config.channels,
+    // channels: config.channels,
     port: config.port,
     secure: config.secure,
     selfSigned: config.selfSigned,
@@ -28,21 +33,53 @@ var bot = new irc.Client(config.server, config.nick, {
     password: config.password
 });
 
-var commands = config.commands;
-
 bot.on('messageError', function(e) {
     console.log(e);
 });
 
-db.connect(function(e) {
-    if (e) {
-        console.error('error connecting: ' + e.stack);
+function say (target, messages) {
+    if (!messages) {
+        return;
+    }
+    if (typeof messages === 'string') {
+        bot.say(target, messages);
+    } else if (Array.isArray(messages)) {
+        for (var i = 0; i < messages.length; i++) {
+            if (messages[i] && typeof messages[i] !== 'string') {
+                throw 'Unexpected ' + typeof messages[i] + ' in message array: ' + messages[i];
+            }
+            bot.say(target, messages[i])
+        }
+    } else {
+        throw 'Invalid `messages` argument passed to say()';
+    }
+}
+
+// Main listener for channel messages/PMs
+bot.addListener('message', function(sender, to, text) {
+    if (!config.disable_db) {
+        checkMessages(to, sender);
+    }
+    var isPM = functionalChans.indexOf(to) === -1;
+    for (var i in commands) {
+        var message_match = commands[i].message_regex && commands[i].message_regex.exec(text);
+        var author_match = (commands[i].author_regex || /.*/).exec(sender);
+        if (message_match && author_match && sender !== config.nick) {
+            var target = (to === config.nick ? sender : to);
+            try {
+                say(target, commands[i].response(message_match, author_match, isPM));
+            } catch (error) {
+                if (error.error_message) {
+                    say(target, error.error_message);
+                } else {
+                    console.error(error.stack);
+                }
+            }
+        }
     }
 });
 
-// Main listener for channel messages/PMs
-bot.addListener('message', function(sender, chan, text) {
-    checkMessages(chan, sender);
+bot.addListener('message', function (sender, chan, text) {
 
     // !msg
     if (text.toLowerCase().indexOf('msg') == 1 || text.toLowerCase().indexOf('tell') == 1) {
@@ -74,7 +111,7 @@ bot.addListener('message', function(sender, chan, text) {
                                     params = [mainInfo.UserID, sender, text, 1];
                                     saveMessage(sender, sql, params, mainInfo.MainNick);
                                 }
-                            }); // make sure the sender is a mod
+                            });
                         }
 
                     } else {
@@ -83,80 +120,30 @@ bot.addListener('message', function(sender, chan, text) {
                 });
             }
         }
-    } else { // end of !msg
-        text = text.toLowerCase();
-        var to = (functionalChans.indexOf(chan) > -1) ? chan : sender;
-        if (functionalChans.indexOf(chan) > -1) {
-            if (text.match(/(^|\s)o\/(\s|$)/)) {
-                if (highFive2) {
-                    hf2(chan, sender);
-                } else {
-                    highFive1 = sender;
-                }
-            } else if (text.match(/(^|\s)\\o(\s|$)/)) {
-                if (highFive1) {
-                    hf1(chan, sender);
-                } else {
-                    highFive2 = sender;
-                }
-            } // end of high fives
-        }
-
-        // . commands
-        if (text.indexOf('.checkfc') == 0) {
-            var fc = text.substr(9).trim();
-            if (!fc.match(/^\d{4}-?\d{4}-?\d{4}$/)) {
-                bot.say(to, 'The input given was not in a valid friend code format.')
-            } else {
-                bot.say(to, 'Friend code: '+fc+' - Valid? '+(validateFC(fc) ? 'YES':'NO'));
-            }
-        } else if (text.indexOf('.checkball ') == 0) {
-            checkBall(text, to);
-        } else if (functionalChans.indexOf(chan) > -1 && text.indexOf('.modmail') == 0 && text.indexOf(" ") > -1) {
-            bot.say(to, "http://hq.porygon.co/search/modmail/"
-                +encodeURIComponent(text.substr(text.indexOf(" ")).trim())
-                    .replace(/[!'()*.]/g, function(c) {return '%' + c.charCodeAt(0).toString(16);})
-            );
-        } else if (functionalChans.indexOf(chan) > -1) {
-            text = text.trim();
-            if (commands[text]) {
-                bot.say(to, commands[text]);
-            }
-        }
     }
 });
 
 // check user's inbox when they join channel
 bot.addListener('join', function(chan, nick) {
-    if (functionalChans.indexOf(chan) > -1) {
+    if (functionalChans.indexOf(chan) > -1 && !config.disable_db) {
         checkMessages(chan, nick);
     }
 });
 
 // respond cutely to pets
 bot.addListener('action', function(sender, chan, text) {
-    checkMessages(chan, sender);
+    if (!config.disable_db) {
+        checkMessages(chan, sender);
+    }
 
     if (text.indexOf('pets ' + config.nick) > -1) {
         bot.say(chan, 'n_n');
     }
 });
 
-/*
- * Completes a high five when two people type o/ and \o.
- */
-var highFive1;
-var highFive2;
-
-function hf1(chan, u2) {
-    bot.say(chan, highFive1 + ' o/\\o ' + u2);
-    highFive1 = undefined;
-}
-
-function hf2(chan, u2) {
-    bot.say(chan, u2 + ' o/\\o ' + highFive2);
-    highFive2 = undefined;
-}
+bot.addListener('error', function (message) {
+    console.error('Error: ', message);
+});
 
 /*
  * Retrieves main IRC nick for the given nickname.
@@ -223,125 +210,4 @@ function checkMessages(chan, nick) {
 
         }
     });
-}
-
-/*
- * States whether the given FC has a valid checksum.
- */
-function validateFC(fc) {
-    fc = fc.replace(/-/g,'');
-    if (!fc.match(/^\d{12}$/) || fc > 549755813887) {
-        return 0;
-    }
-    var checksum = Math.floor(fc/4294967296);
-    var byte_seq = (fc % 4294967296).toString(16);
-    while (byte_seq.length < 8) { byte_seq = "0"+byte_seq; }
-    var byte_arr = byte_seq.match(/../g).reverse();
-    var hash_seq = "";
-    for (var i = 0; i < 4; i++) {
-        hash_seq += String.fromCharCode(parseInt(byte_arr[i],16));
-    }
-    var new_chk = (parseInt(sha1(hash_seq).substring(0,2),16) >> 1);
-    return (new_chk == checksum)?1:0;
-}
-
-/*
- * States whether the given Pokéball is valid for the given Pokémon.
- */
-function checkBall(text, to) {
-    var params = text.substr(11).trim().split(' ');
-
-    var parseBallLegality = function(compressed) {
-        var data = {};
-        for (var i = 0; i < ball_types.length; i++) {
-            var binary = parseInt(compressed.charAt(i)).toString(2);
-            if (ball_types[i] === 'apricorn') {
-                for (var j = 0; j < apricorns.length; j++) {
-                    data[apricorns[j]] = [binary.charAt(0) === '1', binary.charAt(1) === '1', binary.charAt(2) === '1'];
-                }
-            } else {
-                data[ball_types[i]] = [binary.charAt(0) === '1', binary.charAt(1) === '1', binary.charAt(2) === '1'];
-            }
-        }
-        return data;
-    };
-
-    var formatted_limitations = function (data) {
-        if (!data[1] && !data[2]) {
-            return '* (Cannot be bred)';
-        }
-        if (!data[1]) {
-            return '*';
-        }
-        if (!data[2]) {
-            return ' (Cannot be bred)';
-        }
-        return '';
-    };
-
-    if (params.length == 1) {
-        var species = params[0];
-        if (species === "nidoran-m") species = "nidoran♂";
-        if (species === "nidoran-f") species = "nidoran♀";
-        if (ball_data[species]) {
-            var response = 'Legal balls for ' + species.slice(0,1).toUpperCase() + species.slice(1) + ': ';
-            var legality_data = parseBallLegality(ball_data[species]);
-            var ha_data = '';
-            var breeding_data = '';
-            for (var ball in legality_data) {
-                ha_data += legality_data[ball][1]?'1':'0';
-                breeding_data += legality_data[ball][2]?'1':'0';
-            }
-            for (var ball in legality_data) {
-                if (legality_data[ball][0]) {
-                    response += ball.slice(0,1).toUpperCase() + ball.slice(1);
-                    if (ha_data === '0000000000000000000000000') { //25 zeros
-                        legality_data[ball][1] = true;
-                    }
-                    if (breeding_data.slice(1) === '000000000000000000000000') { //24 zeros
-                        legality_data[ball][2] = true;
-                    }
-                    response += formatted_limitations(legality_data[ball]);
-                    response += ', '
-                }
-            }
-            response = response.slice(0, -2) + ' ';
-            if (ha_data === '0000000000000000000000000') { //25 zeros
-                response += '(HA illegal in all balls) ';
-            } else if (response.indexOf('*') != -1) {
-                response += '(* = HA Illegal) ';
-            }
-            if (breeding_data === '0000000000000000000000000') { //25 zeros
-                response += ' (Cannot be bred in any ball) ';
-            } else if (breeding_data === '1000000000000000000000000') { //1 followed by 24 zeros
-                response += ' (Can only be bred in Poké Ball) ';
-            }
-            bot.say(to, response.trim());
-        } else {
-            bot.say(to, "No Pokémon data found for '" + params[0] + "'.");
-        }
-    } else if (params.length == 2 || (params.length == 3 && params[2] === 'ball')) {
-        var species = params[0];
-        var ball = params[1];
-        if (ball.indexOf("poke") != -1) ball = "poké";
-        if (species === "nidoran-m") species = "nidoran♂";
-        if (species === "nidoran-f") species = "nidoran♀";
-        if (ball_types.indexOf(ball) == -1 && apricorns.indexOf(ball) == -1) {
-            bot.say(to, "Ball type '" + ball + "' not recognized.");
-        }
-        else if (ball_data[species]) {
-            var legality_data = parseBallLegality(ball_data[species]);
-            var formattedSpecies = species.slice(0,1).toUpperCase() + species.slice(1);
-            var formattedBall = ball.slice(0,1).toUpperCase() + ball.slice(1) + ' Ball ';
-            var response = formattedBall + formattedSpecies + ' - Legal? ' + (legality_data[ball][0]?'YES':'NO');
-            if (legality_data[ball][0]) {
-                response += formatted_limitations(legality_data[ball]).replace('*', ' (HA illegal)');
-            }
-            bot.say(to, response);
-        } else {
-            bot.say(to, "No Pokémon data found for '" + params[0] + "'.");
-        }
-    } else {
-        bot.say(to, "Usage: .checkball <Pokémon> [balltype]");
-    }
 }
