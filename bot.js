@@ -24,7 +24,7 @@ var functionalChans = config.channels;
 var bot = new irc.Client(config.server, config.nick, {
     userName: config.userName,
     realName: config.realName,
-    // channels: config.channels,
+    channels: config.channels,
     port: config.port,
     secure: config.secure,
     selfSigned: config.selfSigned,
@@ -61,22 +61,23 @@ bot.addListener('message', function(sender, to, text) {
         checkMessages(to, sender);
     }
     var isPM = functionalChans.indexOf(to) === -1;
-    for (var i in commands) {
-        var message_match = commands[i].message_regex && commands[i].message_regex.exec(text);
-        var author_match = (commands[i].author_regex || /.*/).exec(sender);
-        if (message_match && author_match && sender !== config.nick) {
-            var target = (to === config.nick ? sender : to);
-            try {
-                say(target, commands[i].response(message_match, author_match, isPM));
-            } catch (error) {
-                if (error.error_message) {
-                    say(target, error.error_message);
-                } else {
-                    console.error(error.stack);
+        if (!isPM) {
+            for (var i in commands) {
+                var message_match = commands[i].message_regex && commands[i].message_regex.exec(text);
+                var author_match = (commands[i].author_regex || /.*/).exec(sender);
+                if (message_match && author_match && sender !== config.nick) {
+                    var target = (to === config.nick ? sender : to);
+                    try {
+                        say(target, commands[i].response(message_match, author_match, isPM));
+                    } catch (error) {
+                        if (error.error_message) {
+                            say(target, error.error_message);
+                        }
+                        console.error(error.stack);
+                    }
                 }
             }
         }
-    }
 });
 
 bot.addListener('message', function (sender, chan, text) {
