@@ -13,6 +13,14 @@ if (!config.disable_db) {
         timezone: 'Etc/UTC'
     }).then(function(conn) {
         db = conn;
+
+        // check user's inbox when they join channel
+        bot.addListener('join', function(chan, nick) {
+            if (functionalChans.indexOf(chan) > -1 && !config.disable_db) {
+                checkMessages(chan, nick);
+            }
+        });
+
     });
 }
 
@@ -125,13 +133,6 @@ bot.addListener('message', function(sender, chan, text) {
                 });
             }
         }
-    }
-});
-
-// check user's inbox when they join channel
-bot.addListener('join', function(chan, nick) {
-    if (functionalChans.indexOf(chan) > -1 && !config.disable_db) {
-        checkMessages(chan, nick);
     }
 });
 
