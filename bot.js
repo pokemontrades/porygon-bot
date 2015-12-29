@@ -1,5 +1,5 @@
 var irc = require('irc');
-var mysql = require('mysql');
+var mysql = require('promise-mysql');
 var config = require('./config');
 var commands = require('./commands');
 
@@ -11,12 +11,9 @@ if (!config.disable_db) {
         password: config.dbPassword,
         database: config.database,
         timezone: 'Etc/UTC'
+    }).then(function(conn) {
+        db = conn;
     });
-    db.connect(function (e) {
-        if (e) {
-            console.error('error connecting: ' + e.stack);
-        }
-    })
 }
 
 var functionalChans = config.channels;
@@ -56,32 +53,39 @@ function say (target, messages) {
 }
 
 // Main listener for channel messages/PMs
-bot.addListener('message', function(sender, to, text) {
+function executeCommands (sender, to, text) {
     if (!config.disable_db) {
         checkMessages(to, sender);
     }
-    var isPM = functionalChans.indexOf(to) === -1;
-        if (!isPM) {
-            for (var i in commands) {
-                var message_match = commands[i].message_regex && commands[i].message_regex.exec(text);
-                var author_match = (commands[i].author_regex || /.*/).exec(sender);
-                if (message_match && author_match && sender !== config.nick) {
-                    var target = (to === config.nick ? sender : to);
-                    try {
-                        say(target, commands[i].response(message_match, author_match, isPM));
-                    } catch (error) {
-                        if (error.error_message) {
-                            say(target, error.error_message);
-                        }
-                        console.error(error.stack);
-                    }
+    var isPM = to === config.nick;
+    for (var i in commands) {
+        var message_match = commands[i].message_regex && commands[i].message_regex.exec(text);
+        var author_match = (commands[i].author_regex || /.*/).exec(sender);
+        if (message_match && author_match && sender !== config.nick) {
+            var target = isPM ? sender : to;
+            try {
+                say(target, commands[i].response(message_match, author_match, isPM));
+            } catch (error) {
+                if (error.error_message) {
+                    say(target, error.error_message);
+                } else {
+                    console.error(error.stack);
                 }
             }
         }
+    }
+}
+
+bot.addListener('message#', executeCommands);
+
+bot.addListener('pm', function (from, message) {
+    db.query('SELECT * FROM User U JOIN Nick N ON U.UserID = N.UserID WHERE N.Nickname LIKE ?',
+        ['%'+from+'%']).then(function(result) {
+            if (result.length > 0) executeCommands(from, config.nick, message); 
+        });
 });
 
-bot.addListener('message', function (sender, chan, text) {
-
+bot.addListener('message', function(sender, chan, text) {
     // !msg
     if (text.toLowerCase().indexOf('msg') == 1 || text.toLowerCase().indexOf('tell') == 1) {
         var message = getMessage(text);
