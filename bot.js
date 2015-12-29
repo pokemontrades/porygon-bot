@@ -65,11 +65,11 @@ function executeCommands (sender, to, text) {
     if (!config.disable_db) {
         checkMessages(to, sender);
     }
-    var isPM = to === config.nick;
+    var isPM = to === bot.nick;
     for (var i in commands) {
         var message_match = commands[i].message_regex && commands[i].message_regex.exec(text);
         var author_match = (commands[i].author_regex || /.*/).exec(sender);
-        if (message_match && author_match && sender !== config.nick) {
+        if (message_match && author_match && sender !== bot.nick) {
             var target = isPM ? sender : to;
             try {
                 say(target, commands[i].response(message_match, author_match, isPM));
@@ -84,13 +84,39 @@ function executeCommands (sender, to, text) {
     }
 }
 
+function checkIdentified (username) {
+    bot.say('NickServ', 'STATUS ' + username);
+    return new Promise(function (resolve, reject) {
+        bot.once('notice', function (nick, to, text) {
+            if (nick === 'NickServ' && to === bot.nick && text.indexOf('STATUS ' + username + ' ') === 0) {
+                if (text.slice(-1) !== '3') {
+                    return reject('Not identified');
+                }
+                resolve();
+            } else { // The notice was something unrelated, set up the listener again
+                resolve(checkIdentified(username));
+            }
+        });
+    });
+}
+
 bot.addListener('message#', executeCommands);
 
 bot.addListener('pm', function (from, message) {
-    db.query('SELECT * FROM User U JOIN Nick N ON U.UserID = N.UserID WHERE N.Nickname LIKE ?',
-        ['%'+from+'%']).then(function(result) {
-            if (result.length > 0) executeCommands(from, config.nick, message); 
-        });
+    var promises = [];
+    promises.push(checkIdentified(from));
+    if (!config.disable_db) {
+        promises.push(db.query('SELECT * FROM User U JOIN Nick N ON U.UserID = N.UserID WHERE N.Nickname LIKE ?', ['%' + from + '%']).then(function (res) {
+            if (!res.length) {
+                throw 'Not a mod';
+            }
+        }));
+    }
+    Promise.all(promises).then(function() {
+        executeCommands(from, bot.nick, message);
+    }, function (err) {
+        console.log('PM from ' + from + ' was ignored. Reason: ' + err);
+    });
 });
 
 bot.addListener('message', function(sender, chan, text) {
@@ -106,7 +132,7 @@ bot.addListener('message', function(sender, chan, text) {
             var text = message[1];
 
             // no sending to the bot
-            if (user.toLowerCase() == config.nick.toLowerCase()) {
+            if (user.toLowerCase() == bot.nick.toLowerCase()) {
                 bot.action(chan, 'slaps ' + sender + '.');
             } else {
                 getMain(user, function(mainInfo) {
@@ -116,7 +142,7 @@ bot.addListener('message', function(sender, chan, text) {
                             '(?, ?, ?)';
                             params = [mainInfo.UserID, sender, text];
                             saveMessage(chan, sql, params, mainInfo.MainNick);
-                        } else if (chan.toLowerCase() == config.nick.toLowerCase()) { // PM
+                        } else if (chan.toLowerCase() == bot.nick.toLowerCase()) { // PM
                             getMain(sender, function(senderInfo) {
                                 if (senderInfo) {
                                     sql = 'INSERT INTO Message (TargetID, SenderName, MessageText, IsPrivate) VALUES ' +
@@ -142,7 +168,7 @@ bot.addListener('action', function(sender, chan, text) {
         checkMessages(chan, sender);
     }
 
-    if (text.indexOf('pets ' + config.nick) > -1) {
+    if (text.indexOf('pets ' + bot.nick) > -1) {
         bot.say(chan, 'n_n');
     }
 });
@@ -198,7 +224,7 @@ function messageError(chan) {
  * Checks and delivers messages for the given user.
  */
 function checkMessages(chan, nick) {
-    if (chan.toLowerCase() == config.nick.toLowerCase()) {
+    if (chan.toLowerCase() == bot.nick.toLowerCase()) {
         chan = nick;
     }
     db.query('SELECT * from Message M ' +
