@@ -5,7 +5,7 @@ var commands = require('./commands');
 
 var db;
 if (!config.disable_db) {
-    db = mysql.createConnection({
+    mysql.createConnection({
         host: config.dbHost,
         user: config.dbUser,
         password: config.dbPassword,
@@ -34,7 +34,7 @@ bot.on('messageError', function(e) {
     console.log(e);
 });
 
-function say (target, messages) {
+function say(target, messages) {
     if (!messages) {
         return;
     }
