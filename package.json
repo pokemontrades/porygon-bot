@@ -1,6 +1,7 @@
 {
   "name": "porygon-bot",
-  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "version": "0.6.0",
   "description": "An irc bot for /r/pokemontrades moderators",
   "author": "Raia",
   "contributors": [
@@ -17,9 +18,9 @@
   "dependencies": {
     "irc": "~0.3.0",
     "lodash": "^3.10.1",
-    "mysql": "~2.7.0",
-    "node-sha1": "^1.0.1"
+    "node-sha1": "^1.0.1",
+    "promise-mysql": "^1.2.0"
   },
-  "repository": "https://github.com/NotRaia/porygon-bot",
-  "bugs": "https://github.com/NotRaia/porygon-bot/issues"
+  "repository": "https://github.com/pokemontrades/porygon-bot",
+  "bugs": "https://github.com/pokemontrades/porygon-bot/issues"
 }
