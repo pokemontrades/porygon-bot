@@ -1,9 +1,10 @@
+'use strict';
 var _ = require('lodash');
 var ball_data = require('../ball_data.json');
 var pokemon_list = _.keys(ball_data.legal);
-for (var i = 0; i < pokemon_list.length; i++) {
+for (let i = 0; i < pokemon_list.length; i++) {
   var parsed = [];
-  for (var j = 0; j < ball_data.ball_types.length; j++) {
+  for (let j = 0; j < ball_data.ball_types.length; j++) {
     var data = parseInt(ball_data.legal[pokemon_list[i]].charAt(j), 8);
     parsed.push({ball_name: ball_data.ball_types[j], legal: !!(data & 4), ha: !!(data & 2), breedable: !!(data & 1)});
   }
@@ -11,17 +12,17 @@ for (var i = 0; i < pokemon_list.length; i++) {
 }
 var pokemon_corrections = {'nidoran-m': 'nidoran♂', 'nidoran-f': 'nidoran♀', 'nidoran': 'nidoran♀'};
 var ball_corrections = {'poké': 'poke'};
-for (var i in ball_data.apricorn) {
+for (let i in ball_data.apricorn) {
   ball_corrections[ball_data.apricorn[i]] = 'apricorn';
 }
 function formatted_ball_name (ball_name) {
   return ball_name.toLowerCase() === 'poke' ? 'Poké' : _.capitalize(ball_name.toLowerCase());
-};
+}
 
 module.exports = {
   message_regex: /^.checkball ([^ ]+)(?: ([^ ]+))?/i,
   response: function (message_match) {
-    pokemon = pokemon_corrections[message_match[1].toLowerCase()] || message_match[1].toLowerCase();
+    let pokemon = pokemon_corrections[message_match[1].toLowerCase()] || message_match[1].toLowerCase();
     var pokemon_data = ball_data.legal[pokemon];
     if (!pokemon_data) {
       throw {error_message: "No Pokémon data found for '" + message_match[1] + "'."};

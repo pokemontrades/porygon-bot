@@ -15,10 +15,29 @@ ___
 See `message_regex`. Note that unlike `message_regex`, `author_regex` is not required and defaults to `/.*/` (i.e. all authors). However, the bot will never reply to itself.
 
 ___
-`response` - `function(message_match, author_match, isPM)`
+`allow` - `function (isPM, isMod, isAuthenticated)`
 
-The function that gets called when your regexes match. `message_match` and `author_match` are arrays; they are the result of `message_regex.exec(message)` and `author_regex.exec(author)`, respectively. This means that you can use matching groups in `message_regex` and `author_regex` in order to parse messages more easily. `isPM` is a boolean indicating whether the function was called in response to a private message.
+This function allows the message to be filtered before it the `response()` function gets called. If it returns a falsy value, `response` will not get called. If the function is not provided, it defaults to:
 
-`response()` should return either a single string (for a one-line response) or an array of strings (for a multi-line response). It can also return a falsey value if the bot should not respond to the command.
+```javascript
+function defaultAllow(isPM, isMod, isAuthenticated) {
+  return !isPM || isMod && isAuthenticated; // Allow all non-PMs, but only allow PMs if the sender is an authenticated mod.
+}
+```
+
+* `isPM` - a `boolean` indicating whether the message was sent by PM
+* `isMod - a `boolean` indicating whether the sender of the message is in the mod database. Warning: If `config.disable_db` is true, `isMod` will always be `true`.
+* `isAuthenticated` - a `boolean` indicating whether the sender of the message is authenticated with NickServ.
+
+___
+`response` - `function(message_match, author_match, isPM, isMod, isAuthenticated)`
+
+This function that gets called when your regexes match. It should return either a single string (for a one-line response) or an array of strings (for a multi-line response). It can also return a falsey value if the bot should not respond to the command.
 
 If `response()` throws an error, it will be handled and printed to the console. If the error has an `error_message` property, this property will be sent to the IRC in lieu of a response. This could be useful to let the sender know that an error occured. For example, `throw {error_message: 'You forgot a parameter'};` will send 'You forgot a parameter' as a response.
+
+`message_match` - `Array` - the result of `message_regex.exec(message)`
+`author_match` - `Array` - the result of `author_regex.exec(author)`
+`isPM` - see `allow()` above
+`isMod` - see `allow()` above
+`isAuthenticated` - see `allow()` above
