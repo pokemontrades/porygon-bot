@@ -17,6 +17,14 @@ const warningsToWords = {
   botban: ['black', 'old', 'general']
 };
 let warningTypes = _.keys(warningsToWords);
+let usageForNerds = 'Usage: .tag [show | add | append] < -n|--note> "<note>" < --user <username> | /u/<username> >\
+ [--sub <subreddit> | /r/<subreddit>] [--url <url> | https://<url>] [--color <color>] [--refresh | --refresh-cache]';
+let usageForRegularPeople = 'To view /u/username\'s tags on /r/pokemontrades: .tag /u/username\n\
+To view /u/username\'s tags on /r/somewhere_else: .tag /u/username /r/somewhere_else\n\
+To add a tag: .tag add --note "Note text goes here" https://reddit.com/some_link\n\
+To add a red tag: .tag add --note "Note text goes here" --color red https://reddit.com/some_link\n\
+To view advanced options: .tag options';
+
 var wordsToWarnings = {};
 for (let i = 0; i < warningTypes.length; i++) {
   warningsToWords[warningTypes[i]].forEach(function (word) {
@@ -25,7 +33,7 @@ for (let i = 0; i < warningTypes.length; i++) {
 }
 
 module.exports = {
-  message_regex: /^.(?:usernote|tag) (.*)/,
+  message_regex: /^.(?:usernote|tag)(?: (.*)|$)/,
   allow: function (isPM, isAuthenticated, isMod) {
     return !isPM && isAuthenticated && isMod;
   },
@@ -33,6 +41,9 @@ module.exports = {
     /* Split into words, but keep quoted blocks together. Also parse reddit usernames and correctly.
     e.g. '--option1 word --option2 "quoted block" otherword /u/someone /r/some_sub https://reddit.com/blah/'
     --> ['--option1', 'word', '--option2', 'quoted block', 'otherword', '--user', 'someone', '--subreddit', 'some_sub', '--link', 'reddit.com/blah/'] */
+    if (!message_match[1]) {
+      return usageForRegularPeople;
+    }
     let splitIntoWords = /(http(?:s)?:\/\/)|(\/u\/)|(\/r\/)|([^\s"]+)|(?:"((\\")?(?:[^"\\]|\\\\|\\")*)")+/g;
     if (message_match[1].replace(splitIntoWords, '').trim()) {
       throw {error_message: 'Error: invalid string.'};
@@ -43,7 +54,7 @@ module.exports = {
     });
     let parseSettings = {
       default: {type: 'yellow'},
-      boolean: 'refresh-cache',
+      boolean: ['refresh-cache', 'help'],
       alias: {
         sub: 'subreddit', s: 'subreddit', text: 'note', n: 'note', u: 'user', color: 'type', c: 'type', warning: 'type',
         url: 'link', l: 'link', refresh: 'refresh-cache'
@@ -52,9 +63,12 @@ module.exports = {
     let args = parseArgs(preparsedArgs, parseSettings);
     let command = args._.length ? args._[0].toLowerCase() : 'show';
     args.subreddit = args.link || args.subreddit ? args.subreddit : 'pokemontrades';
+    if (command === 'help' || args.help) {
+      return usageForRegularPeople;
+    }
     if (command === 'show') {
       if (!args.user) {
-        throw {error_message: 'Error: No user provided. To get the tags for a user, use `.tag /u/username`.'};
+        throw {error_message: 'Error: No user provided. For help, try `.tag help`.'};
       }
       return getNotes(args.subreddit, args['refresh-cache']).then(function (parsed) {
         let notes = _.find(parsed.notes, function (obj, name) {
@@ -82,6 +96,9 @@ module.exports = {
           return 'Successfully added note on ' + data[0] + ': ' + prettyPrintNote(result, data[1]);
         });
       });
+    }
+    if (command === 'options') {
+      return usageForNerds;
     }
   }
 };
@@ -166,5 +183,5 @@ function prettyPrintNote (note, subreddit, index) {
   let parsed = cache.get(subreddit);
   return (index ? '(' + (index + 1) + ') ' : '') + _.capitalize(warningsToWords[parsed.constants.warnings[note.w]][0]) + ' note by ' +
     parsed.constants.users[note.m] + ' at ' + moment.unix(note.t).utc().format("YYYY-MM-DD HH:mm:ss UTC") + (note.l ? ' on link https://reddit.com' +
-    (note.l.charAt(0) === 'l' ? ('/r/' + subreddit + '/comments/' + note.l.slice(2).replace(/,/g,'/-/')) : '/message/messages/' + note.l.slice(2)) : '') + ': "' + note.n + '"';
+    (note.l.charAt(0) === 'l' ? ('/r/' + subreddit + '/comments/' + note.l.slice(2).replace(/,/g,'/-/')) : '/message/messages/' + note.l.slice(2)) : '') + ' : "' + note.n + '"';
 }
