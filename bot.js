@@ -1,3 +1,4 @@
+'use strict';
 var irc = require('irc');
 var mysql = require('promise-mysql');
 var config = require('./config');
@@ -49,15 +50,25 @@ function say(target, messages) {
     if (typeof messages === 'string') {
         bot.say(target, messages);
     } else if (Array.isArray(messages)) {
-        for (var i = 0; i < messages.length; i++) {
+        for (let i = 0; i < messages.length; i++) {
             if (messages[i] && typeof messages[i] !== 'string') {
                 throw 'Unexpected ' + typeof messages[i] + ' in message array: ' + messages[i];
             }
-            bot.say(target, messages[i])
+            bot.say(target, messages[i]);
         }
+    } else if (typeof messages === 'object' && messages.then) {
+        messages.then(function (results) {
+            say(target, results);
+        }, function (error) {
+            handleError(target, error);
+        });
     } else {
         throw 'Invalid `messages` argument passed to say()';
     }
+}
+
+function defaultAllow (isPM, isMod, isAuthenticated) { // The default allow() function that gets used for a command if allow() is not provided
+    return !isPM || isMod && isAuthenticated;
 }
 
 // Main listener for channel messages/PMs
@@ -65,64 +76,67 @@ function executeCommands (sender, to, text) {
     if (!config.disable_db) {
         checkMessages(to, sender);
     }
-    var isPM = to === bot.nick;
-    for (var i in commands) {
-        var message_match = commands[i].message_regex && commands[i].message_regex.exec(text);
-        var author_match = (commands[i].author_regex || /.*/).exec(sender);
+    let isPM = to === bot.nick;
+    let target = isPM ? sender : to;
+    let checkMod, checkAuth; // Don't check whether the user is a mod or identified unless they actually trigger a command
+    for (let i in commands) {
+        let message_match = commands[i].message_regex && commands[i].message_regex.exec(text);
+        let author_match = (commands[i].author_regex || /.*/).exec(sender);
         if (message_match && author_match && sender !== bot.nick) {
-            var target = isPM ? sender : to;
-            try {
-                say(target, commands[i].response(message_match, author_match, isPM));
-            } catch (error) {
-                if (error.error_message) {
-                    say(target, error.error_message);
-                } else {
-                    console.error(error.stack);
+            checkMod = checkMod || checkIfUserIsMod(sender);
+            checkAuth = checkAuth || checkAuthenticated(sender);
+            Promise.all([checkMod, checkAuth]).then(function (results) {
+                if ((commands[i].allow || defaultAllow)(isPM, results[0], results[1])) {
+                    say(target, commands[i].response(message_match, author_match, isPM, results[0], results[1]));
                 }
-            }
+            }).catch(function (error) {
+                handleError(target, error);
+            });
         }
     }
 }
 
-function checkIdentified (username) {
-    bot.say('NickServ', 'STATUS ' + username);
-    return new Promise(function (resolve, reject) {
-        bot.once('notice', function (nick, to, text) {
-            if (nick === 'NickServ' && to === bot.nick && text.indexOf('STATUS ' + username + ' ') === 0) {
-                if (text.slice(-1) !== '3') {
-                    return reject('Not identified');
-                }
-                resolve();
-            } else { // The notice was something unrelated, set up the listener again
-                resolve(checkIdentified(username));
-            }
-        });
+function handleError (target, error) {
+    if (error.error_message) {
+        say(target, error.error_message);
+    }
+    if (error.stack) {
+        console.log(error.stack);
+    }
+}
+
+function checkIfUserIsMod (username) { // Returns a Promise that will resolve as true if the user is in the mod database, and false otherwise
+    if (config.disable_db) {
+        return Promise.resolve(true);
+    }
+    return db.query('SELECT * FROM User U JOIN Nick N ON U.UserID = N.UserID WHERE N.Nickname LIKE ?', ['%' + username + '%']).then(function (res) {
+        return !!res.length;
     });
 }
 
-bot.addListener('message#', executeCommands);
-
-bot.addListener('pm', function (from, message) {
-    var promises = [];
-    promises.push(checkIdentified(from));
-    if (!config.disable_db) {
-        promises.push(db.query('SELECT * FROM User U JOIN Nick N ON U.UserID = N.UserID WHERE N.Nickname LIKE ?', ['%' + from + '%']).then(function (res) {
-            if (!res.length) {
-                throw 'Not a mod';
+function checkAuthenticated (username) { // Returns a Promise that will resolve as true if the user is identified, and false otherwise
+    bot.say('NickServ', 'STATUS ' + username);
+    var awaitResponse = function (resolve) {
+        bot.once('notice', function (nick, to, text) {
+            if (nick === 'NickServ' && to === bot.nick && text.indexOf('STATUS ' + username + ' ') === 0) {
+                resolve(text.slice(-1) === '3');
+            } else { // The notice was something unrelated, set up the listener again
+                resolve(new Promise(awaitResponse));
             }
-        }));
-    }
-    Promise.all(promises).then(function() {
-        executeCommands(from, bot.nick, message);
-    }, function (err) {
-        console.log('PM from ' + from + ' was ignored. Reason: ' + err);
+        });
+    };
+    var timeout = new Promise(function (resolve, reject) { // Reject the promise if NickServ hasn't replied after 5 seconds
+        setTimeout(reject, 5000, 'Timed out waiting for NickServ response');
     });
-});
+    return Promise.race([new Promise(awaitResponse), timeout]);
+}
 
-bot.addListener('message', function(sender, chan, text) {
+bot.addListener('message', executeCommands);
+
+bot.addListener('message', function(sender, chan, prompt) {
     // !msg
-    if (text.toLowerCase().indexOf('msg') == 1 || text.toLowerCase().indexOf('tell') == 1) {
-        var message = getMessage(text);
+    if (prompt.toLowerCase().indexOf('msg') == 1 || prompt.toLowerCase().indexOf('tell') == 1) {
+        var message = getMessage(prompt);
 
         // no empty messages
         if (message[0] && message[1].trim().length > 0) {

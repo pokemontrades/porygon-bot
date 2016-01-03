@@ -15,7 +15,8 @@ module.exports = {
   database: "porygon_bot",
   channels: ["#ircroom"],
   friendly: ["coolperson1", "coolperson2"],
-  commands : {
-    ".blah" : "bot response"
-  }
+  reddit_client_id: 'aaa',
+  reddit_client_secret: 'bbb',
+  reddit_refresh_token: 'ccc', // Scope: privatemessages read wikiedit wikiread
+  reddit_user_agent: 'Porygon IRC Helper'
 };
