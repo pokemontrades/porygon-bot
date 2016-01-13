@@ -140,7 +140,15 @@ function getMissingInfo (user, subreddit, url) {
       fetchSubreddit = subreddit || fetchObject.then(tree => (tree.data.subreddit));
       formatted_link = 'm,' + parsed_url[4];
     } else {
-      fetchUser = reddit.getItemById(parsed_url[3] ? 't1_' + parsed_url[3] : 't3_' + parsed_url[2]).then(response => (response.data.author));
+      fetchUser = reddit.getItemById(parsed_url[3] ? 't1_' + parsed_url[3] : 't3_' + parsed_url[2]).then(function (response) {
+        if (response.data.author === '[deleted]') {
+          if (user) {
+            return reddit.getCorrectUsername(user);
+          }
+          throw {error_message: 'Error: The linked item was deleted, and no username was provided.'};
+        }
+        return response.data.author;
+      });
       fetchSubreddit = subreddit || parsed_url[1];
       formatted_link = 'l,' + parsed_url[2] + (parsed_url[3] ? ',' + parsed_url[3] : '');
     }
