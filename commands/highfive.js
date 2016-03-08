@@ -2,7 +2,7 @@ var STACKABLE = false; // :(
 var stored = [];
 module.exports = {
   message_regex: /(?:^|\s)(o\/|\\o)(?:\s|$)/i,
-  response: function (message_match, author_match, isPM) {
+  response: function ({message_match, author_match, isPM}) {
     if (isPM) {
       return;
     }

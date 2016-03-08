@@ -14,4 +14,4 @@ An IRC bot created by the /r/pokemontrades team for our use.
 * edit config.js and update information
 
 ## Usage
-* `node bot.js`
+* `node --harmony-destructuring bot.js`
