@@ -3,7 +3,7 @@ var NodeCache = require('node-cache');
 var _ = require('lodash');
 var moment = require('moment');
 var pako = require('pako');
-var reddit = require('../services/reddit.js');
+var r = require('../services/reddit.js');
 var parseArgs = require('minimist');
 var cache = new NodeCache({stdTTL: 900});
 const warningsToWords = {
@@ -34,10 +34,10 @@ for (let i = 0; i < warningTypes.length; i++) {
 
 module.exports = {
   message_regex: /^.(?:usernote|tag)(?: (.*)|$)/,
-  allow: function ({isPM, isAuthenticated, isMod}) {
+  allow (isPM, isAuthenticated, isMod) {
     return !isPM && isAuthenticated && isMod;
   },
-  response: function ({message_match, author_match}) {
+  response (message_match, author_match) {
     /* Split into words, but keep quoted blocks together. Also parse reddit usernames and correctly.
     e.g. '--option1 word --option2 "quoted block" otherword /u/someone /r/some_sub https://reddit.com/blah/'
     --> ['--option1', 'word', '--option2', 'quoted block', 'otherword', '--user', 'someone', '--subreddit', 'some_sub', '--link', 'reddit.com/blah/'] */
@@ -82,8 +82,7 @@ module.exports = {
         }
         return 'No notes found for /u/' + args.user + ' on /r/' + args.subreddit + '.';
       });
-    }
-    if (command === 'add' || command === 'create' || command === 'append') {
+    } else if (command === 'add' || command === 'create' || command === 'append') {
       let warning = wordsToWarnings[args.type];
       if (!warning) {
         throw {error_message: "Error: Unknown note type '" + args.type + "'"};
@@ -95,10 +94,16 @@ module.exports = {
         return addNote(author_match[0], data[0], data[1], args.note, warning, data[2], command === 'append').then(function (result) {
           return 'Successfully added note on ' + data[0] + ': ' + prettyPrintNote(result, data[1]);
         });
+      }).catch(function (err) {
+        if (err.statusCode) {
+          throw _.assign(err, {error_message: `Error: Received status code ${err.statusCode} from reddit.`});
+        }
+        throw _.assign(err, {error_message: 'An unknown error occured.'});
       });
-    }
-    if (command === 'options') {
+    } else if (command === 'options') {
       return usageForNerds;
+    } else {
+      throw {error_message: `Error: Unrecognized command ${command}. For help, type '.tag' with no parameters.`};
     }
   }
 };
@@ -118,7 +123,7 @@ function getNotes (subreddit, ignore_cache) {
   if (cached_notes && !ignore_cache) {
     return Promise.resolve(cached_notes);
   }
-  return reddit.getWikiPage(subreddit, 'usernotes').then(function (compressed_notes) {
+  return r.get_subreddit(subreddit).get_wiki_page('usernotes').content_md.then(function (compressed_notes) {
     let pageObject = JSON.parse(compressed_notes);
     let parsed = _(pageObject).assign({notes: decompress(pageObject.blob)}).omit('blob').value();
     cache.set(subreddit, parsed);
@@ -133,22 +138,23 @@ function getMissingInfo (user, subreddit, url) {
       throw {error_message: 'Error: The provided URL is invalid.'};
     }
     if (parsed_url[4]) {
-      let fetchObject = reddit.getItemById('t4_' + parsed_url[4]);
-      fetchUser =  fetchObject.then(function (tree) {
-        return !user || tree.data.author.toLowerCase() === user.toLowerCase() ? tree.data.author : reddit.getCorrectUsername(user);
+      const fetchObject = r.get_message(parsed_url[4]);
+      fetchUser =  fetchObject.author.name.then(function (name) {
+        return !user || name.toLowerCase() === user.toLowerCase() ? name : r.get_user(user).fetch().name;
       });
-      fetchSubreddit = subreddit || fetchObject.then(tree => (tree.data.subreddit));
+      fetchSubreddit = subreddit || fetchObject.subreddit.display_name;
       formatted_link = 'm,' + parsed_url[4];
     } else {
-      fetchUser = reddit.getItemById(parsed_url[3] ? 't1_' + parsed_url[3] : 't3_' + parsed_url[2]).then(function (response) {
-        if (response.data.author === '[deleted]') {
-          if (user) {
-            return reddit.getCorrectUsername(user);
+      if (user) {
+        fetchUser = r.get_user(user).fetch().name.catchReturn(user);
+      } else {
+        fetchUser = (parsed_url[3] ? r.get_comment(parsed_url[3]) : r.get_submission(parsed_url[2])).author.name.then(function (name) {
+          if (name === '[deleted]') {
+            throw {error_message: 'Error: The linked item was deleted, and no username was provided.'};
           }
-          throw {error_message: 'Error: The linked item was deleted, and no username was provided.'};
-        }
-        return response.data.author;
-      });
+          return name;
+        });
+      }
       fetchSubreddit = subreddit || parsed_url[1];
       formatted_link = 'l,' + parsed_url[2] + (parsed_url[3] ? ',' + parsed_url[3] : '');
     }
@@ -159,7 +165,7 @@ function getMissingInfo (user, subreddit, url) {
     if (!subreddit) {
       throw {error_message: 'Error: Either a subreddit or a URL is required.'};
     }
-    fetchUser = reddit.getCorrectUsername(user);
+    fetchUser = r.get_user(user).fetch().name;
     fetchSubreddit = subreddit;
   }
   return Promise.all([fetchUser, fetchSubreddit, formatted_link]);
@@ -181,7 +187,10 @@ function addNote (modname, user, subreddit, noteText, warning, link_id, add_to_e
     var newNote = {n: noteText, t: moment().unix(), m: mods.indexOf(modname), l: link_id, w: warnings.indexOf(warning)};
     notes[user].ns[add_to_end ? 'push' : 'unshift'](newNote);
     let newPageObject = _(parsed).assign({blob: compress(notes)}).omit('notes').value();
-    return reddit.editWikiPage(subreddit, 'usernotes', JSON.stringify(newPageObject), modname + ': Added a note on /u/' + user).then(function () {
+    return r.get_subreddit(subreddit).get_wiki_page('usernotes').edit({
+      text: JSON.stringify(newPageObject),
+      reason: `${modname}: Added a note on /u/${user}`
+    }).then(function () {
       cache.set(subreddit, parsed);
       return newNote;
     });

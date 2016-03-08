@@ -24,7 +24,8 @@
     "node-sha1": "^1.0.1",
     "pako": "^0.2.8",
     "promise-mysql": "^1.2.0",
-    "request-promise": "^1.0.2"
+    "request-promise": "^1.0.2",
+    "snoowrap": "^0.9.3"
   },
   "repository": "https://github.com/pokemontrades/porygon-bot",
   "bugs": "https://github.com/pokemontrades/porygon-bot/issues",
