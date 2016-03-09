@@ -2,7 +2,7 @@
 var NodeCache = require('node-cache');
 var _ = require('lodash');
 var moment = require('moment');
-var pako = require('pako');
+const Promise = require('bluebird');
 var r = require('../services/reddit.js');
 var parseArgs = require('minimist');
 var cache = new NodeCache({stdTTL: 900});
@@ -34,10 +34,10 @@ for (let i = 0; i < warningTypes.length; i++) {
 
 module.exports = {
   message_regex: /^.(?:usernote|tag)(?: (.*)|$)/,
-  allow (isPM, isAuthenticated, isMod) {
+  allow: function (isPM, isAuthenticated, isMod) {
     return !isPM && isAuthenticated && isMod;
   },
-  response (message_match, author_match) {
+  response: function (message_match, author_match) {
     /* Split into words, but keep quoted blocks together. Also parse reddit usernames and correctly.
     e.g. '--option1 word --option2 "quoted block" otherword /u/someone /r/some_sub https://reddit.com/blah/'
     --> ['--option1', 'word', '--option2', 'quoted block', 'otherword', '--user', 'someone', '--subreddit', 'some_sub', '--link', 'reddit.com/blah/'] */
@@ -54,10 +54,10 @@ module.exports = {
     });
     let parseSettings = {
       default: {type: 'yellow'},
-      boolean: ['refresh-cache', 'help'],
+      boolean: ['refresh', 'help'],
       alias: {
         sub: 'subreddit', s: 'subreddit', text: 'note', n: 'note', u: 'user', color: 'type', c: 'type', warning: 'type',
-        url: 'link', l: 'link', refresh: 'refresh-cache'
+        url: 'link', l: 'link', 'refresh-cache': 'refresh'
       }
     };
     let args = parseArgs(preparsedArgs, parseSettings);
@@ -70,7 +70,7 @@ module.exports = {
       if (!args.user) {
         throw {error_message: 'Error: No user provided. For help, try `.tag help`.'};
       }
-      return getNotes(args.subreddit, args['refresh-cache']).then(function (parsed) {
+      return getNotes(args.subreddit, {refresh: args.refresh}).then(function (parsed) {
         let notes = _.find(parsed.notes, function (obj, name) {
           if (name.toLowerCase() === args.user.toLowerCase()) {
             args.user = name;
@@ -78,127 +78,160 @@ module.exports = {
           }
         });
         if (notes) {
-          return 'Notes on /u/' + args.user + ': ' + notes.ns.map((note, index) => (prettyPrintNote(note, args.subreddit, index))).join(', ');
+          return [`Notes on /u/${args.user} on /r/${args.subreddit}:`].concat(
+            notes.ns.map((note, i) => `(${i + 1}) ${formatNote(note, args.subreddit)}`)
+          );
         }
-        return 'No notes found for /u/' + args.user + ' on /r/' + args.subreddit + '.';
+        return `No notes found for /u/${args.user} on /r/${args.subreddit}.`;
       });
-    } else if (command === 'add' || command === 'create' || command === 'append') {
+    } else if (['add', 'create', 'append'].indexOf(command) !== -1) {
       let warning = wordsToWarnings[args.type];
       if (!warning) {
-        throw {error_message: "Error: Unknown note type '" + args.type + "'"};
+        throw {error_message: `Error: Unknown note type '${args.type}'`};
       }
       if (!args.note) {
         throw {error_message: 'Error: Missing note text.'};
       }
-      return getMissingInfo(args.user, args.subreddit, args.link).then(function (data) {
-        return addNote(author_match[0], data[0], data[1], args.note, warning, data[2], command === 'append').then(function (result) {
-          return 'Successfully added note on ' + data[0] + ': ' + prettyPrintNote(result, data[1]);
+      return getMissingInfo(args).then(props => addNote({
+          mod: author_match[0],
+          user: props.user,
+          subreddit: props.subreddit,
+          note: args.note,
+          warning,
+          link: props.link,
+          append: command === 'append'
+        }).then(result => [`Successfully added note on /u/${props.user}:`, `${formatNote(result, props.subreddit)}`])
+      ).catch(err => {
+        throw _.assign(err, {
+          error_message: err.eror_message || (err.statusCode ? `Error: Reddit sent status code ${err.statusCode}.` : 'An unknown error occured.')
         });
-      }).catch(function (err) {
-        if (err.statusCode) {
-          throw _.assign(err, {error_message: `Error: Received status code ${err.statusCode} from reddit.`});
-        }
-        throw _.assign(err, {error_message: 'An unknown error occured.'});
       });
+    } else if (['delete', 'rm', 'remove'].indexOf(command) !== -1) {
+      if (!args.user) {
+        throw {error_message: 'Error: No user provided'};
+      }
+      args.subreddit = args.subreddit || 'pokemontrades';
+      if (!args._[1]) {
+        throw {error_message: 'No index number provided. You must provide the one-based index number of the note to remove.'};
+      }
+      return removeNote(args);
     } else if (command === 'options') {
       return usageForNerds;
     } else {
-      throw {error_message: `Error: Unrecognized command ${command}. For help, type '.tag' with no parameters.`};
+      throw {error_message: `Error: Unrecognized command "${command}". For help, use ".tag help".`};
     }
   }
 };
-
-function decompress (blob) {
-  var inflate = new pako.Inflate({to: 'string'});
-  inflate.push(new Buffer(blob, 'base64').toString('binary'));
-  return JSON.parse(inflate.result);
+function decompressBlob (blob) {
+  return JSON.parse(require('zlib').inflateSync(new Buffer(blob, 'base64')));
 }
-function compress (notesObject) {
-  var deflate = new pako.Deflate({to: 'string'});
-  deflate.push(JSON.stringify(notesObject), true);
-  return (new Buffer(deflate.result.toString(), 'binary')).toString('base64');
+function compressBlob (notesObject) {
+  return require('zlib').deflateSync(new Buffer(JSON.stringify(notesObject))).toString('base64');
 }
-function getNotes (subreddit, ignore_cache) {
-  let cached_notes = cache.get(subreddit);
-  if (cached_notes && !ignore_cache) {
+function getNotes (subreddit, {refresh = false} = {}) {
+  const cached_notes = cache.get(subreddit);
+  if (cached_notes && !refresh) {
     return Promise.resolve(cached_notes);
   }
-  return r.get_subreddit(subreddit).get_wiki_page('usernotes').content_md.then(function (compressed_notes) {
-    let pageObject = JSON.parse(compressed_notes);
-    let parsed = _(pageObject).assign({notes: decompress(pageObject.blob)}).omit('blob').value();
+  return r.get_subreddit(subreddit).get_wiki_page('usernotes').content_md.then(JSON.parse).then(pageObject => {
+    const parsed = _(pageObject).assign({notes: decompressBlob(pageObject.blob)}).omit('blob').value();
     cache.set(subreddit, parsed);
     return parsed;
   });
 }
-function getMissingInfo (user, subreddit, url) {
-  let fetchUser, fetchSubreddit, formatted_link;
-  if (url) {
-    let parsed_url = url.match(/^(?:(?:http(?:s?):\/\/)?(?:\w*\.)?reddit.com)?\/(?:r\/(\w{1,21})\/comments\/(\w*)\/\w*\/(\w*)?)|(?:message\/messages\/(\w*))/);
-    if (!parsed_url) {
-      throw {error_message: 'Error: The provided URL is invalid.'};
+function parseUrl (url) {
+  const urlParser = /^(?:(?:http(?:s?):\/\/)?(?:\w*\.)?reddit.com)?\/(?:r\/(\w{1,21})\/comments\/(\w*)\/\w*\/(\w*)?)|(?:message\/messages\/(\w*))/;
+  const matched = url.match(urlParser);
+  if (!matched) {
+    throw {error_message: 'Error: The provided URL is invalid.'};
+  }
+  return {subreddit: matched[1], submissionId: matched[2], commentId: matched[3], messageId: matched[4]};
+}
+function getMissingInfo ({user: providedUser, subreddit: providedSubreddit, link: providedUrl}) {
+  /* If no URL was provided, simply use the information that was given. However, fetch the user's information
+  on reddit, because their name might have been capitalized incorrectly and it's important that we get the
+  correct capitalization. */
+  if (!providedUrl) {
+    if (!providedUser) {
+      throw {error_message: 'Error: Either a user or a URL is required.'};
     }
-    if (parsed_url[4]) {
-      const fetchObject = r.get_message(parsed_url[4]);
-      fetchUser =  fetchObject.author.name.then(function (name) {
-        return !user || name.toLowerCase() === user.toLowerCase() ? name : r.get_user(user).fetch().name;
-      });
-      fetchSubreddit = subreddit || fetchObject.subreddit.display_name;
-      formatted_link = 'm,' + parsed_url[4];
-    } else {
-      if (user) {
-        fetchUser = r.get_user(user).fetch().name.catchReturn(user);
-      } else {
-        fetchUser = (parsed_url[3] ? r.get_comment(parsed_url[3]) : r.get_submission(parsed_url[2])).author.name.then(function (name) {
-          if (name === '[deleted]') {
-            throw {error_message: 'Error: The linked item was deleted, and no username was provided.'};
-          }
-          return name;
-        });
-      }
-      fetchSubreddit = subreddit || parsed_url[1];
-      formatted_link = 'l,' + parsed_url[2] + (parsed_url[3] ? ',' + parsed_url[3] : '');
-    }
-  } else {
-    if (!user) {
-      throw {error_message: 'Error: Either a user or a URL is requred.'};
-    }
-    if (!subreddit) {
+    if (!providedSubreddit) {
       throw {error_message: 'Error: Either a subreddit or a URL is required.'};
     }
-    fetchUser = r.get_user(user).fetch().name;
-    fetchSubreddit = subreddit;
+    return Promise.props({user: r.get_user(providedUser).fetch().name, subreddit: providedSubreddit});
   }
-  return Promise.all([fetchUser, fetchSubreddit, formatted_link]);
+  // If a URL was provided, fetch the information as necessary.
+  const parsedUrl = parseUrl(providedUrl);
+  let link, contentObject;
+  if (parsedUrl.messageId) {
+    contentObject = r.get_message(parsedUrl.messageId);
+    link = `m,${parsedUrl.messageId}`;
+  } else if (parsedUrl.commentId) {
+    contentObject = r.get_comment(parsedUrl.commentId);
+    link = `l,${parsedUrl.submissionId},${parsedUrl.commentId}`;
+  } else {
+    contentObject = r.get_submission(parsedUrl.submissionId);
+    link = `l,${parsedUrl.submissionId}`;
+  }
+  const user = contentObject.author.name.then(name => {
+    if (providedUser) {
+      // If the provided user is the author of the content, use the username from the content
+      if (name.toLowerCase() === providedUser.toLowerCase()) {
+        return name;
+      }
+      // Otherwise, get the provided user's profile page to make sure the capitalization is correct.
+      return r.get_user(providedUser).fetch().name.catchReturn(providedUser);
+    }
+    if (name === '[deleted]') {
+      throw {error_message: 'Error: The linked item was deleted, and no username was provided.'};
+    }
+    return name;
+  });
+  // The subreddit is only used as part of a URL, so capitalization doesn't matter.
+  const subreddit = providedSubreddit || parsedUrl.subreddit || contentObject.subreddit.display_name;
+  return Promise.props({user, subreddit, link});
 }
-function addNote (modname, user, subreddit, noteText, warning, link_id, add_to_end) {
-  return getNotes(subreddit, true).then(function (parsed) {
-    let mods = parsed.constants.users;
-    let warnings = parsed.constants.warnings;
-    let notes = parsed.notes;
-    if (!notes[user]) {
-      notes[user] = {ns: []};
+function addNote ({mod, user, subreddit, note, warning = 'abusewarn', link, append = false}) {
+  return getNotes(subreddit, {refresh: true}).then(parsed => {
+    _.merge(parsed.notes, {[user]: {ns: []}});
+    const newNote = {
+      n: note,
+      t: moment().unix(),
+      m: (parsed.constants.users.indexOf(mod) + 1 || parsed.constants.users.push(mod)) - 1,
+      w: (parsed.constants.warnings.indexOf(warning) + 1 || parsed.constants.warnings.push(warning)) - 1,
+      l: link
+    };
+    if (append) {
+      parsed.notes[user].ns.push(newNote);
+    } else {
+      parsed.notes[user].ns.unshift(newNote);
     }
-    if (mods.indexOf(modname) === -1) {
-      mods.push(modname);
-    }
-    if (warnings.indexOf(warning) === -1) {
-      warnings.push(warning);
-    }
-    var newNote = {n: noteText, t: moment().unix(), m: mods.indexOf(modname), l: link_id, w: warnings.indexOf(warning)};
-    notes[user].ns[add_to_end ? 'push' : 'unshift'](newNote);
-    let newPageObject = _(parsed).assign({blob: compress(notes)}).omit('notes').value();
     return r.get_subreddit(subreddit).get_wiki_page('usernotes').edit({
-      text: JSON.stringify(newPageObject),
-      reason: `${modname}: Added a note on /u/${user}`
-    }).then(function () {
-      cache.set(subreddit, parsed);
-      return newNote;
-    });
+      text: JSON.stringify(_(parsed).assign({blob: compressBlob(parsed.notes)}).omit('notes').value()),
+      reason: `Added a note on /u/${user} (on behalf of ${mod})`
+    }).return(newNote);
   });
 }
-function prettyPrintNote (note, subreddit, index) {
+function removeNote ({user, subreddit, index}) {
+  return getNotes(subreddit, {refresh: true}).then(parsed => {
+
+  });
+}
+function formatNote (note, subreddit) {
   let parsed = cache.get(subreddit);
-  return (index ? '(' + (index + 1) + ') ' : '') + _.capitalize(warningsToWords[parsed.constants.warnings[note.w]][0]) + ' note by ' +
-    parsed.constants.users[note.m] + ' at ' + moment.unix(note.t).utc().format("YYYY-MM-DD HH:mm:ss UTC") + (note.l ? ' on link https://reddit.com' +
-    (note.l.charAt(0) === 'l' ? ('/r/' + subreddit + '/comments/' + note.l.slice(2).replace(/,/g,'/-/')) : '/message/messages/' + note.l.slice(2)) : '') + ' : "' + note.n + '"';
+  const color = warningsToWords[parsed.constants.warnings[note.w]][0];
+  const author = parsed.constants.users[note.m];
+  const timestamp = moment.unix(note.t).fromNow();
+  let link;
+  if (note.l) {
+    if (note.l.charAt(0) === 'm') {
+      link = `reddit.com/message/messages/${note.l.slice(2)}`;
+    } else if (note.l.slice(2).includes(',')) {
+      link = `reddit.com/comments/${note.l.slice(2).replace(/,/, '/-/')}`;
+    } else {
+      link = `reddit.com/${note.l.slice(2)}`;
+    }
+  }
+  const content = note.n;
+  return `"${content}" (${timestamp}, by ${author}${link ? `, on link ${link} ` : ''}, colored ${color})`;
 }
