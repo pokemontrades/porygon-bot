@@ -6,6 +6,7 @@ const Promise = require('bluebird');
 var r = require('../services/reddit.js');
 var parseArgs = require('minimist');
 var cache = new NodeCache({stdTTL: 900});
+const removedNoteCache = [];
 const warningsToWords = {
   none: ['blue', 'none'],
   gooduser: ['green', 'misc', 'misc.', 'miscellaneous'],
@@ -34,10 +35,10 @@ for (let i = 0; i < warningTypes.length; i++) {
 
 module.exports = {
   message_regex: /^.(?:usernote|tag)(?: (.*)|$)/,
-  allow: function (isPM, isAuthenticated, isMod) {
+  allow: function ({isPM, isAuthenticated, isMod}) {
     return !isPM && isAuthenticated && isMod;
   },
-  response: function (message_match, author_match) {
+  response: function ({message_match, author_match}) {
     /* Split into words, but keep quoted blocks together. Also parse reddit usernames and correctly.
     e.g. '--option1 word --option2 "quoted block" otherword /u/someone /r/some_sub https://reddit.com/blah/'
     --> ['--option1', 'word', '--option2', 'quoted block', 'otherword', '--user', 'someone', '--subreddit', 'some_sub', '--link', 'reddit.com/blah/'] */
@@ -79,11 +80,11 @@ module.exports = {
         });
         if (notes) {
           return [`Notes on /u/${args.user} on /r/${args.subreddit}:`].concat(
-            notes.ns.map((note, i) => `(${i + 1}) ${formatNote(note, args.subreddit)}`)
+            notes.ns.map((note, i) => `(${i}) ${formatNote(note, args.subreddit)}`)
           );
         }
         return `No notes found for /u/${args.user} on /r/${args.subreddit}.`;
-      });
+      }).catch(handleErrors);
     } else if (['add', 'create', 'append'].indexOf(command) !== -1) {
       let warning = wordsToWarnings[args.type];
       if (!warning) {
@@ -99,22 +100,28 @@ module.exports = {
           note: args.note,
           warning,
           link: props.link,
-          append: command === 'append'
+          append: command === 'append' ? -1 : 0
         }).then(result => [`Successfully added note on /u/${props.user}:`, `${formatNote(result, props.subreddit)}`])
-      ).catch(err => {
-        throw _.assign(err, {
-          error_message: err.eror_message || (err.statusCode ? `Error: Reddit sent status code ${err.statusCode}.` : 'An unknown error occured.')
-        });
-      });
+      ).catch(handleErrors);
     } else if (['delete', 'rm', 'remove'].indexOf(command) !== -1) {
       if (!args.user) {
         throw {error_message: 'Error: No user provided'};
       }
       args.subreddit = args.subreddit || 'pokemontrades';
-      if (!args._[1]) {
-        throw {error_message: 'No index number provided. You must provide the one-based index number of the note to remove.'};
+      if (!_.isNumber(args._[1])) {
+        throw {error_message: 'No index number provided. You must provide the index number of the note to remove.'};
       }
-      return removeNote(args);
+      return removeNote({user: args.user, subreddit: args.subreddit, index: args._[1], requester: author_match[1]}).then(note => {
+        return ['Successfully deleted the following note:', formatNote(note, args.subreddit), 'To undo this action, use ".tag undo-delete"'];
+      }).catch(handleErrors);
+    } else if (command === 'undo-delete') {
+      const newNote = removedNoteCache.pop();
+      return addNote(newNote).then(result => (
+        [`Successfully recreated note on /u/${newNote.user} on /r/${newNote.subreddit}:`, formatNote(result, newNote.subreddit)]
+      )).catch(err => {
+        removedNoteCache.push(newNote);
+        handleErrors(err);
+      });
     } else if (command === 'options') {
       return usageForNerds;
     } else {
@@ -140,7 +147,7 @@ function getNotes (subreddit, {refresh = false} = {}) {
   });
 }
 function parseUrl (url) {
-  const urlParser = /^(?:(?:http(?:s?):\/\/)?(?:\w*\.)?reddit.com)?\/(?:r\/(\w{1,21})\/comments\/(\w*)\/\w*\/(\w*)?)|(?:message\/messages\/(\w*))/;
+  const urlParser = /^(?:(?:http(?:s?):\/\/)?(?:\w*\.)?reddit.com)?\/(?:r\/(\w{1,21})\/comments\/(\w*)(?:\/[\w-]*\/(\w*))?)|(?:message\/messages\/(\w*))/;
   const matched = url.match(urlParser);
   if (!matched) {
     throw {error_message: 'Error: The provided URL is invalid.'};
@@ -191,30 +198,53 @@ function getMissingInfo ({user: providedUser, subreddit: providedSubreddit, link
   const subreddit = providedSubreddit || parsedUrl.subreddit || contentObject.subreddit.display_name;
   return Promise.props({user, subreddit, link});
 }
-function addNote ({mod, user, subreddit, note, warning = 'abusewarn', link, append = false}) {
+function addNote ({mod, user, subreddit, note, warning = 'abusewarn', link, index = 0, timestamp = moment().unix()}) {
   return getNotes(subreddit, {refresh: true}).then(parsed => {
     _.merge(parsed.notes, {[user]: {ns: []}});
     const newNote = {
       n: note,
-      t: moment().unix(),
+      t: timestamp,
       m: (parsed.constants.users.indexOf(mod) + 1 || parsed.constants.users.push(mod)) - 1,
       w: (parsed.constants.warnings.indexOf(warning) + 1 || parsed.constants.warnings.push(warning)) - 1,
       l: link
     };
-    if (append) {
-      parsed.notes[user].ns.push(newNote);
-    } else {
-      parsed.notes[user].ns.unshift(newNote);
-    }
+    parsed.notes[user].ns.splice(index, 0, newNote);
     return r.get_subreddit(subreddit).get_wiki_page('usernotes').edit({
       text: JSON.stringify(_(parsed).assign({blob: compressBlob(parsed.notes)}).omit('notes').value()),
       reason: `Added a note on /u/${user} (on behalf of ${mod})`
-    }).return(newNote);
+    }).then(() => {
+      cache.set(subreddit, parsed);
+      return newNote;
+    });
   });
 }
-function removeNote ({user, subreddit, index}) {
+function removeNote ({user, subreddit, index, requester}) {
   return getNotes(subreddit, {refresh: true}).then(parsed => {
-
+    const name = _.findKey(parsed.notes, (obj, username) => username.toLowerCase() === user.toLowerCase());
+    if (name === -1 || parsed.notes[name].ns.length < index) {
+      throw {error_message: 'Error: That note was not found.'};
+    }
+    const removedNote = parsed.notes[name].ns.splice(index, 1)[0];
+    if (!parsed.notes[name].ns.length) {
+      delete parsed.notes[name];
+    }
+    return r.get_subreddit(subreddit).get_wiki_page('usernotes').edit({
+      text: JSON.stringify(_(parsed).assign({blob: compressBlob(parsed.notes)}).omit('notes').value()),
+      reason: `Removed a note on /u/${user}${requester ? `(on behalf of ${requester})` : ''}`
+    }).then(() => {
+      removedNoteCache.push({
+        mod: parsed.constants.users[removedNote.m],
+        user,
+        subreddit,
+        note: removedNote.n,
+        warning: parsed.constants.warnings[removedNote.w],
+        link: removedNote.l,
+        index,
+        timestamp: removedNote.t
+      });
+      cache.set(subreddit, parsed);
+      return removedNote;
+    });
   });
 }
 function formatNote (note, subreddit) {
@@ -234,4 +264,9 @@ function formatNote (note, subreddit) {
   }
   const content = note.n;
   return `"${content}" (${timestamp}, by ${author}${link ? `, on link ${link} ` : ''}, colored ${color})`;
+}
+function handleErrors (err) {
+  throw _.assign(err, {
+    error_message: err.error_message || (err.statusCode ? `Error: Reddit sent status code ${err.statusCode}.` : 'An unknown error occured.')
+  });
 }
