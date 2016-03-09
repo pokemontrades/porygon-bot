@@ -10,7 +10,7 @@ function validateFC (fc) {
 }
 module.exports = {
   message_regex: /^.checkfc (\d{4}-\d{4}-\d{4})/,
-  response: function (message_match) {
+  response: function ({message_match}) {
     return 'Friend code: ' + message_match[1] + ' - Valid? ' + (validateFC(message_match[1]) ? 'YES' : 'NO');
   }
 };

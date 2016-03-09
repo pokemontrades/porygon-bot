@@ -34,10 +34,10 @@ for (let i = 0; i < warningTypes.length; i++) {
 
 module.exports = {
   message_regex: /^.(?:usernote|tag)(?: (.*)|$)/,
-  allow: function (isPM, isAuthenticated, isMod) {
+  allow: function ({isPM, isAuthenticated, isMod}) {
     return !isPM && isAuthenticated && isMod;
   },
-  response: function (message_match, author_match) {
+  response: function ({message_match, author_match}) {
     /* Split into words, but keep quoted blocks together. Also parse reddit usernames and correctly.
     e.g. '--option1 word --option2 "quoted block" otherword /u/someone /r/some_sub https://reddit.com/blah/'
     --> ['--option1', 'word', '--option2', 'quoted block', 'otherword', '--user', 'someone', '--subreddit', 'some_sub', '--link', 'reddit.com/blah/'] */

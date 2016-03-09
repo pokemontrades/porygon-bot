@@ -15,12 +15,12 @@ ___
 See `message_regex`. Note that unlike `message_regex`, `author_regex` is not required and defaults to `/.*/` (i.e. all authors). However, the bot will never reply to itself.
 
 ___
-`allow` - `function (isPM, isMod, isAuthenticated)`
+`allow` - `function ({isPM, isMod, isAuthenticated})`
 
 This function allows the message to be filtered before it the `response()` function gets called. If it returns a falsy value, `response` will not get called. If the function is not provided, it defaults to:
 
 ```javascript
-function defaultAllow(isPM, isMod, isAuthenticated) {
+function defaultAllow({isPM, isMod, isAuthenticated}) {
   return !isPM || isMod && isAuthenticated; // Allow all non-PMs, but only allow PMs if the sender is an authenticated mod.
 }
 ```
@@ -30,7 +30,7 @@ function defaultAllow(isPM, isMod, isAuthenticated) {
 * `isAuthenticated` - a `boolean` indicating whether the sender of the message is authenticated with NickServ.
 
 ___
-`response` - `function(message_match, author_match, isPM, isMod, isAuthenticated)`
+`response` - `function({message_match, author_match, isPM, isMod, isAuthenticated})`
 
 This function that gets called when your regexes match. It should return either a single string (for a one-line response) or an array of strings (for a multi-line response). It can also return a falsey value if the bot should not respond to the command.
 
