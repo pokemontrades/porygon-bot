@@ -140,6 +140,7 @@ function checkAuthenticated (username) { // Returns a Promise that will resolve 
 function checkCommandEnabled (channelName, commandName, channelConfig) {
     if (_.isArray(config.channels)) {
         warn('Warning: No channel-specific configurations detected in the config file. All commands will be allowed on all channels.');
+        return true;
     }
     if (channelConfig === undefined) {
         warn(`Warning: No channel-specific configuration found for the channel ${channelName}. All commands on this channel will be ignored.`);
