@@ -1,9 +1,12 @@
 'use strict';
+const _ = require('lodash');
+const Promise = require('bluebird');
 var irc = require('irc');
 var mysql = require('promise-mysql');
 var config = require('./config');
 var db = require('./services/db');
 var commands = require('./commands');
+const warn = _.memoize(console.warn);
 
 if (!config.disable_db) {
     mysql.createConnection({
@@ -32,12 +35,10 @@ if (!config.disable_db) {
     console.log("The following modules, which require database connectivity, have been disabled: ["+db.listModules().join(", ")+"]");
 }
 
-var functionalChans = config.channels;
-
 var bot = new irc.Client(config.server, config.nick, {
     userName: config.userName,
     realName: config.realName,
-    channels: config.channels,
+    channels: _.isArray(config.channels) ? config.channels : _.keys(config.channels),
     port: config.port,
     secure: config.secure,
     selfSigned: config.selfSigned,
@@ -90,34 +91,18 @@ function defaultAllow ({isPM, isMod, isAuthenticated}) { // The default allow() 
 }
 
 // Main listener for channel messages/PMs
-function executeCommands (event, author, chan, text) {
-    let isPM = chan === bot.nick;
-    let target = isPM ? author : chan;
-    let checkMod, checkAuth; // Don't check whether the user is a mod or identified unless they actually trigger a command
+function executeCommands (event, author, channel, text) {
+    let isPM = channel === bot.nick;
+    let target = isPM ? author : channel;
     for (let i in commands[event]) {
         let message_match = commands[event][i].message_regex && commands[event][i].message_regex.exec(text);
         let author_match = (commands[event][i].author_regex || /.*/).exec(author);
-        if (message_match && author_match && author !== bot.nick) {
-            checkMod = checkMod || checkIfUserIsMod(author);
-            checkAuth = checkAuth || checkAuthenticated(author);
-            Promise.all([checkMod, checkAuth]).then(function (results) {
-                if ((commands[event][i].allow || defaultAllow)({
-                    isPM: isPM,
-                    isMod: results[0],
-                    isAuthenticated: results[1]
-                })) {
-                    outputResponse( target, commands[event][i].response({
-                        bot: bot,
-                        message_match: message_match,
-                        author_match: author_match,
-                        channel: chan,
-                        isMod: results[0],
-                        isAuthenticated: results[1]
-                    }));
+        if (message_match && author_match && author !== bot.nick && (isPM || checkCommandEnabled(channel, i, config.channels[channel]))) {
+            Promise.join(checkIfUserIsMod(author), checkAuthenticated(author), (isMod, isAuthenticated) => {
+                if ((commands[event][i].allow || defaultAllow)({isPM, isMod, isAuthenticated})) {
+                    outputResponse(target, commands[event][i].response({bot, message_match, author_match, channel, isMod, isAuthenticated}));
                 }
-            }).catch(function (error) {
-                handleError(target, error);
-            });
+            }).catch(_.partial(handleError, target));
         }
     }
 }
@@ -126,8 +111,8 @@ function handleError (target, error) {
     if (error.error_message) {
         outputResponse(target, error.error_message);
     }
-    if (error.stack) {
-        console.log(error.stack);
+    if (_.isError(error)) {
+        console.error(error);
     }
 }
 
@@ -135,27 +120,50 @@ function checkIfUserIsMod (username) { // Returns a Promise that will resolve as
     if (config.disable_db || db.conn == null) {
         return Promise.resolve(true);
     }
-    return db.conn.query('SELECT * FROM User U JOIN Nick N ON U.UserID = N.UserID WHERE N.Nickname LIKE ?', ['%' + username + '%']).then(function (res) {
-        return !!res.length;
-    });
+    return db.conn.query('SELECT * FROM User U JOIN Nick N ON U.UserID = N.UserID WHERE N.Nickname LIKE ?', ['%' + username + '%']).then(res => !!res.length);
 }
 
 function checkAuthenticated (username) { // Returns a Promise that will resolve as true if the user is identified, and false otherwise
-    bot.say('NickServ', 'STATUS ' + username);
-    var awaitResponse = function (resolve) {
-        bot.once('notice', function (nick, to, text) {
-            if (nick === 'NickServ' && to === bot.nick && text.indexOf('STATUS ' + username + ' ') === 0) {
+    bot.say('NickServ', `STATUS ${username}`);
+    var awaitResponse = () => new Promise(resolve => {
+        bot.once('notice', (nick, to, text) => {
+            if (nick === 'NickServ' && to === bot.nick && text.indexOf(`STATUS ${username} `) === 0) {
                 resolve(text.slice(-1) === '3');
             } else { // The notice was something unrelated, set up the listener again
-                resolve(new Promise(awaitResponse));
+                resolve(awaitResponse());
             }
         });
-    };
-    var timeout = new Promise(function (resolve, reject) { // Reject the promise if NickServ hasn't replied after 5 seconds
-        setTimeout(reject, 5000, 'Timed out waiting for NickServ response');
     });
-    return Promise.race([new Promise(awaitResponse), timeout]);
+    return awaitResponse().timeout(5000, 'Timed out waiting for NickServ response');
 }
+
+function checkCommandEnabled (channelName, commandName, channelConfig) {
+    if (_.isArray(config.channels)) {
+        warn('Warning: No channel-specific configurations detected in the config file. All commands will be allowed on all channels.');
+    }
+    if (channelConfig === undefined) {
+        warn(`Warning: No channel-specific configuration found for the channel ${channelName}. All commands on this channel will be ignored.`);
+        return false;
+    }
+    if (_.isBoolean(channelConfig)) {
+        return channelConfig;
+    }
+    if (_.isRegExp(channelConfig)) {
+        return channelConfig.test(commandName);
+    }
+    if (_.isArray(channelConfig)) {
+        return _.includes(channelConfig, commandName);
+    }
+    if (_.isString(channelConfig)) {
+        return channelConfig === commandName;
+    }
+    if (_.isFunction(channelConfig)) {
+        return !!channelConfig(commandName);
+    }
+    warn(`Warning: Failed to parse channel-specific configuration for the channel ${channelName}. All commands on this channel will be ignored.`);
+    return false;
+}
+
 
 bot.addListener('error', function (message) {
     console.error('Error: ', message);
