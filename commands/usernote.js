@@ -112,7 +112,7 @@ module.exports = {
         throw {error_message: 'No index number provided. You must provide the index number of the note to remove.'};
       }
       return removeNote({user: args.user, subreddit: args.subreddit, index: args._[1], requester: author_match[1]}).then(note => {
-        return ['Successfully deleted the following note:', formatNote(note, args.subreddit), 'To undo this action, use ".tag undo-delete"'];
+        return ['Successfully deleted the following note. To undo this action, use ".tag undo-delete".', formatNote(note, args.subreddit)];
       }).catch(handleErrors);
     } else if (command === 'undo-delete') {
       const newNote = removedNoteCache.pop();
