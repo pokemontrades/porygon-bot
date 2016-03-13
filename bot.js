@@ -18,7 +18,7 @@ if (!config.disable_db) {
     }).then(function(conn) {
 
         db.conn = conn;
-        
+
         Object.keys(db.modules).forEach(function(event) {
             Object.keys(db.modules[event]).forEach(function(name) {
                 if (commands[event] === undefined) {
@@ -95,12 +95,12 @@ function executeCommands (event, author, channel, text) {
     let isPM = channel === bot.nick;
     let target = isPM ? author : channel;
     for (let i in commands[event]) {
-        let message_match = commands[event][i].message_regex && commands[event][i].message_regex.exec(text);
+        let message_match = (commands[event][i].message_regex || /.*/).exec(text);
         let author_match = (commands[event][i].author_regex || /.*/).exec(author);
         if (message_match && author_match && author !== bot.nick && (isPM || checkCommandEnabled(channel, i, config.channels[channel]))) {
             Promise.join(checkIfUserIsMod(author), checkAuthenticated(author), (isMod, isAuthenticated) => {
                 if ((commands[event][i].allow || defaultAllow)({isPM, isMod, isAuthenticated})) {
-                    outputResponse(target, commands[event][i].response({bot, message_match, author_match, channel, isMod, isAuthenticated}));
+                    outputResponse(target, commands[event][i].response({bot, message_match, author_match, channel, isMod, isAuthenticated, eventType: event}));
                 }
             }).catch(_.partial(handleError, target));
         }
@@ -166,22 +166,9 @@ function checkCommandEnabled (channelName, commandName, channelConfig) {
 }
 
 
-bot.addListener('error', function (message) {
-    console.error('Error: ', message);
-});
-
-bot.addListener('message', executeMsgCommands);
-bot.addListener('join', executeJoinCommands);
-bot.addListener('action', executeActionCommands);
-
-function executeMsgCommands(author, chan, text) {
-    executeCommands('message', author, chan, text);
-}
-
-function executeJoinCommands(chan, user) {
-    executeCommands('join', user, chan);
-}
-
-function executeActionCommands(author, chan, text) {
-    executeCommands('action', author, chan, text);
-}
+bot.on('error', console.error);
+bot.on('message', _.partial(executeCommands, 'message'));
+bot.on('join', (chan, user) => executeCommands('join', user, chan));
+bot.on('action', _.partial(executeCommands, 'action'));
+bot.on('+mode', (chan, by, mode, argument) => executeCommands(`mode +${mode}`, by, chan, argument));
+bot.on('-mode', (chan, by, mode, argument) => executeCommands(`mode -${mode}`, by, chan, argument));

@@ -7,12 +7,12 @@ Give the file the imports listed below. For an example, see `example.js`.
 ___
 `message_regex` - `RegExp`
 
-A regular expression that determines whether the bot should respond to any given message. The `response()` function will get called only if `message_regex` and `author_regex` both match the message and the author, respectively. If `message_regex` is not provided, the function will never get called.
+A regular expression that determines whether the bot should respond to any given message. Defaults to `/.*/` (i.e. all messages).
 
 ___
 `author_regex` - `RegExp`
 
-See `message_regex`. Note that unlike `message_regex`, `author_regex` is not required and defaults to `/.*/` (i.e. all authors). However, the bot will never reply to itself.
+See `message_regex`. Defaults to `/.*/` (i.e. all authors). Note that the bot will never reply to itself.
 
 ___
 `allow` - `function ({isPM, isMod, isAuthenticated})`
@@ -26,11 +26,11 @@ function defaultAllow({isPM, isMod, isAuthenticated}) {
 ```
 
 * `isPM` - a `boolean` indicating whether the message was sent by PM
-* `isMod - a `boolean` indicating whether the sender of the message is in the mod database. Warning: If `config.disable_db` is true, `isMod` will always be `true`.
+* `isMod` - a `boolean` indicating whether the sender of the message is in the mod database. Warning: If `config.disable_db` is true, `isMod` will always be `true`.
 * `isAuthenticated` - a `boolean` indicating whether the sender of the message is authenticated with NickServ.
 
 ___
-`response` - `function({message_match, author_match, isPM, isMod, isAuthenticated})`
+`response` - `function({bot, message_match, author_match, channel, isMod, isPM, isAuthenticated, eventType})`
 
 This function that gets called when your regexes match. It should return either a single string (for a one-line response) or an array of strings (for a multi-line response). It can also return a falsey value if the bot should not respond to the command.
 
