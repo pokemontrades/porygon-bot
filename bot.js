@@ -5,7 +5,9 @@ var irc = require('irc');
 var mysql = require('promise-mysql');
 var config = require('./config');
 var db = require('./services/db');
+const constants = require('./services/constants');
 var commands = require('./commands');
+const tasks = require('./tasks');
 const warn = _.memoize(console.warn);
 
 if (!config.disable_db) {
@@ -45,10 +47,6 @@ var bot = new irc.Client(config.server, config.nick, {
     certExpired: config.certExpired,
     encoding: 'UTF-8',
     password: config.password
-});
-
-bot.on('messageError', function(e) {
-    console.log(e);
 });
 
 function outputResponse(target, messages) {
@@ -97,7 +95,7 @@ function executeCommands (event, author, channel, text) {
     for (let i in commands[event]) {
         let message_match = (commands[event][i].message_regex || /.*/).exec(text);
         let author_match = (commands[event][i].author_regex || /.*/).exec(author);
-        if (message_match && author_match && author !== bot.nick && (isPM || checkCommandEnabled(channel, i, config.channels[channel]))) {
+        if (message_match && author_match && author !== bot.nick && (isPM || checkEnabled(channel, i, config.channels[channel]))) {
             Promise.join(checkIfUserIsMod(author), checkAuthenticated(author), (isMod, isAuthenticated) => {
                 if ((commands[event][i].allow || defaultAllow)({isPM, isMod, isAuthenticated})) {
                     outputResponse(target, commands[event][i].response({bot, message_match, author_match, channel, isMod, isAuthenticated, eventType: event}));
@@ -137,34 +135,29 @@ function checkAuthenticated (username) { // Returns a Promise that will resolve 
     return awaitResponse().timeout(5000, 'Timed out waiting for NickServ response');
 }
 
-function checkCommandEnabled (channelName, commandName, channelConfig) {
-    if (_.isArray(config.channels)) {
-        warn('Warning: No channel-specific configurations detected in the config file. All commands will be allowed on all channels.');
-        return true;
-    }
-    if (channelConfig === undefined) {
+function checkEnabled (channelName, itemName, itemConfig) {
+    if (itemConfig === undefined) {
         warn(`Warning: No channel-specific configuration found for the channel ${channelName}. All commands on this channel will be ignored.`);
         return false;
     }
-    if (_.isBoolean(channelConfig)) {
-        return channelConfig;
+    if (_.isBoolean(itemConfig)) {
+        return itemConfig;
     }
-    if (_.isRegExp(channelConfig)) {
-        return channelConfig.test(commandName);
+    if (_.isRegExp(itemConfig)) {
+        return itemConfig.test(itemName);
     }
-    if (_.isArray(channelConfig)) {
-        return _.includes(channelConfig, commandName);
+    if (_.isArray(itemConfig)) {
+        return _.includes(itemConfig, itemName);
     }
-    if (_.isString(channelConfig)) {
-        return channelConfig === commandName;
+    if (_.isString(itemConfig)) {
+        return itemConfig === itemName;
     }
-    if (_.isFunction(channelConfig)) {
-        return !!channelConfig(commandName);
+    if (_.isFunction(itemConfig)) {
+        return !!itemConfig(itemName);
     }
     warn(`Warning: Failed to parse channel-specific configuration for the channel ${channelName}. All commands on this channel will be ignored.`);
     return false;
 }
-
 
 bot.on('error', console.error);
 bot.on('message', _.partial(executeCommands, 'message'));
@@ -172,3 +165,28 @@ bot.on('join', (chan, user) => executeCommands('join', user, chan));
 bot.on('action', _.partial(executeCommands, 'action'));
 bot.on('+mode', (chan, by, mode, argument) => executeCommands(`mode +${mode}`, by, chan, argument));
 bot.on('-mode', (chan, by, mode, argument) => executeCommands(`mode -${mode}`, by, chan, argument));
+
+function executeTask(taskName) {
+  const params = tasks[taskName];
+  const iteratee = params.concurrent ? params.task : _.once(params.task);
+  _.forOwn(config.tasks, (channelConfig, channel) => {
+    if (checkEnabled(channel, taskName, channelConfig)) {
+      outputResponse(channel, iteratee({bot, channel}));
+    }
+  });
+}
+
+bot.on('join', () => {
+  _.forOwn(tasks, (params, taskName) => {
+    if (!params.period) {
+      return warn(constants.missingPeriodWarning(taskName));
+    }
+    if (params.period < 5000 && !params.allowFastPeriod) {
+      return warn(constants.smallPeriodWarning(taskName, params.period));
+    }
+    if (params.onStart) {
+      executeTask(taskName);
+    }
+    setInterval(executeTask, params.period, taskName);
+  });
+});
