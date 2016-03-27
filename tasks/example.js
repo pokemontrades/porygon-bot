@@ -2,7 +2,7 @@
 'use strict';
 let counter = 0;
 module.exports = {
-  period: 60000,
+  period: 60,
   onStart: true,
   task () {
     return `The time is now ${new Date().toTimeString()}. This bot was last restarted ${counter++} minutes ago.`;

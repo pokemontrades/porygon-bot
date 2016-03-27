@@ -26,7 +26,7 @@
     "moment": "^2.10.6",
     "node-cache": "^3.0.0",
     "promise-mysql": "^1.2.0",
-    "snoowrap": "^0.9.3"
+    "snoowrap": "^0.10.1"
   },
   "repository": "https://github.com/pokemontrades/porygon-bot",
   "bugs": "https://github.com/pokemontrades/porygon-bot/issues",

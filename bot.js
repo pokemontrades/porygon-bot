@@ -5,7 +5,6 @@ var irc = require('irc');
 var mysql = require('promise-mysql');
 var config = require('./config');
 var db = require('./services/db');
-const constants = require('./services/constants');
 var commands = require('./commands');
 const tasks = require('./tasks');
 const warn = _.memoize(console.warn);
@@ -59,7 +58,7 @@ function outputResponse(target, messages) {
         for (let i = 0; i < messages.length; i++) {
             outputResponse(target, messages[i]);
         }
-    } else if (typeof messages === 'object' && messages.then) {
+    } else if (_.isObject(messages) && typeof messages.then === 'function') {
         messages.then(function (results) {
             outputResponse(target, results);
         }, function (error) {
@@ -176,17 +175,11 @@ function executeTask(taskName) {
   });
 }
 
-bot.on('join', () => {
+bot.once('join', () => {
   _.forOwn(tasks, (params, taskName) => {
-    if (!params.period) {
-      return warn(constants.missingPeriodWarning(taskName));
-    }
-    if (params.period < 5000 && !params.allowFastPeriod) {
-      return warn(constants.smallPeriodWarning(taskName, params.period));
-    }
     if (params.onStart) {
       executeTask(taskName);
     }
-    setInterval(executeTask, params.period, taskName);
+    setInterval(executeTask, params.period * 1000, taskName);
   });
 });
