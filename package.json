@@ -3,6 +3,9 @@
   "license": "Apache-2.0",
   "version": "0.6.0",
   "description": "An irc bot for /r/pokemontrades moderators",
+  "scripts": {
+    "start": "node --harmony-proxies --harmony-destructuring --harmony-default-parameters bot.js"
+  },
   "author": "Raia",
   "contributors": [
     {
@@ -22,7 +25,6 @@
     "minimist": "^1.2.0",
     "moment": "^2.10.6",
     "node-cache": "^3.0.0",
-    "node-sha1": "^1.0.1",
     "promise-mysql": "^1.2.0",
     "snoowrap": "^0.9.3"
   },
