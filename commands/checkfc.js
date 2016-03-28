@@ -1,12 +1,7 @@
-var sha1 = require('node-sha1');
+var sha1 = data => require('crypto').createHash('sha1').update(Buffer(data)).digest();
 function validateFC (fc) {
   fc = fc.replace(/-/g, '');
-  if (!fc.match(/^\d{12}$/) || fc >= Math.pow(2, 39)) {
-    return false;
-  }
-  var bytes = new Buffer(4);
-  bytes.writeUInt32LE(fc % Math.pow(2, 32));
-  return parseInt(sha1(bytes).slice(0, 2), 16) >> 1 === Math.floor(fc / Math.pow(2, 32));
+  return /^\d{12}$/.test(fc) && sha1(new Uint32Array([fc]).buffer)[0] >> 1 === fc / Math.pow(2, 32) >> 0;
 }
 module.exports = {
   message_regex: /^.checkfc (\d{4}-\d{4}-\d{4})/,

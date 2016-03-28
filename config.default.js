@@ -24,6 +24,10 @@ module.exports = {
       return commandName;
     }
   },
+  tasks: {
+    '#ircroom1': true // allow all tasks in this room
+    // etc.
+  },
   friendly: ["coolperson1", "coolperson2"],
   reddit_client_id: 'aaa',
   reddit_client_secret: 'bbb',
