@@ -22,5 +22,5 @@ module.exports = {
 
 function formatItem (item) {
   const permalink = item.constructor.name === 'Comment' ? item.link_url + item.id : item.url;
-  return `[NEW REPORTED ITEM] ${item.constructor.name} by /u/${item.author.name}: ${permalink}`;
+  return `[New report] ${item.constructor.name} by /u/${item.author.name}: ${permalink}`;
 }
