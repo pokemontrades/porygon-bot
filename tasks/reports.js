@@ -9,7 +9,7 @@ module.exports = {
   period: 60,
   onStart: true,
   task () {
-    return r.get_subreddit(SUBREDDITS.join('+')).get_reports({limit: 25}).then(items => {
+    return r.get_subreddit(SUBREDDITS.join('+')).get_reports({limit: hasFinishedFirstRun ? 25 : 50}).then(items => {
       // Don't output the new reports on the first fetch, as that would cause old reports to be listed.
       // Unfortunately, there is no way to tell whether reports on an item have been ignored using the OAuth API.
       const newItemsToReport = hasFinishedFirstRun ? items.filter(item => !reportedItemNames.has(item.name)) : [];

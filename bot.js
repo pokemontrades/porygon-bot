@@ -13,6 +13,7 @@ if (!config.disable_db) {
     mysql.createConnection({
         host: config.dbHost,
         user: config.dbUser,
+        port: config.dbPort,
         password: config.dbPassword,
         database: config.database,
         timezone: 'Etc/UTC'
