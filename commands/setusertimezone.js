@@ -1,5 +1,4 @@
 var db = require('../services/db');
-var mysql = require('promise-mysql');
 
 module.exports = {
     db_required: true,
@@ -20,14 +19,14 @@ module.exports = {
                 return "I'm not sure what time zone that's supposed to be.";
             }
             return db.conn.query('UPDATE User SET timezone = ? WHERE UserID=?',
-                [timezone,results.UserID]).then(function(result) {
+                [timezone,results.UserID]).then(function() {
                     return "Timezone updated successfully!";
                 }).catch(function(err) {
                     console.log(err);
                 });
         });
     }
-}
+};
 
 function timezoneToInt(str) {
     var matches = (/(-|\+)?(\d+)((\:|\.)(\d+))?/).exec(str);
@@ -38,7 +37,7 @@ function timezoneToInt(str) {
             return undefined;
         }
     }
-    var sign = matches[1]
+    var sign = matches[1];
     var hour = parseInt(matches[2]);
     var min = parseInt(matches[5]);
     var separator = matches[4];
