@@ -7,7 +7,7 @@ exports.getMain = function(nick, callback) {
         }).catch(function(err) {
             console.log(err);
         });
-}
+};
 exports.listModules = function() {
     var module_list_keys = {};
     var type_list = Object.keys(exports.modules);
@@ -18,4 +18,4 @@ exports.listModules = function() {
         }
     }
     return Object.keys(module_list_keys);
-}
+};

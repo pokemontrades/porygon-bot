@@ -1,13 +1,11 @@
 var db = require('../services/db');
-var config = require('../config');
 var moment = require('moment');
-var mysql = require('promise-mysql');
 
 module.exports = {
   db_required: true,
   message_regex: /^.*$/,
   events: ['message','join','action'],
-  response: function ({bot, message_match, author_match, channel, isMod, isAuthenticated}) {
+  response: function ({bot, message_match, author_match, channel, isAuthenticated}) {
     var prompt = message_match[0];
     var author = author_match[0];
     var responses = [];
