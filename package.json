@@ -4,7 +4,9 @@
   "version": "0.6.0",
   "description": "An irc bot for /r/pokemontrades moderators",
   "scripts": {
-    "start": "node --harmony-proxies --harmony-destructuring --harmony-default-parameters bot.js"
+    "start": "node --harmony-proxies --harmony-destructuring --harmony-default-parameters bot.js",
+    "pretest": "eslint .",
+    "test": "mocha --harmony-proxies --harmony-destructuring --harmony-default-parameters test/**/*"
   },
   "author": "Raia",
   "contributors": [
@@ -31,8 +33,8 @@
   "repository": "https://github.com/pokemontrades/porygon-bot",
   "bugs": "https://github.com/pokemontrades/porygon-bot/issues",
   "devDependencies": {
-    "eslint-config-standard": "^4.4.0",
-    "eslint-plugin-standard": "^1.3.1",
-    "grunt-eslint": "^17.3.1"
+    "chai": "^3.5.0",
+    "eslint": "^2.5.3",
+    "mocha": "^2.4.5"
   }
 }
