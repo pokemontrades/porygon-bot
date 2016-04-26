@@ -100,7 +100,7 @@ module.exports = {
           note: args.note,
           warning,
           link: props.link,
-          append: command === 'append' ? -1 : 0
+          index: command === 'append' ? undefined : 0
         }).then(result => [`Successfully added note on /u/${props.user}:`, `${formatNote(result, props.subreddit)}`])
       ).catch(handleErrors);
     } else if (['delete', 'rm', 'remove'].indexOf(command) !== -1) {
@@ -198,9 +198,10 @@ function getMissingInfo ({user: providedUser, subreddit: providedSubreddit, link
   const subreddit = providedSubreddit || parsedUrl.subreddit || contentObject.subreddit.display_name;
   return Promise.props({user, subreddit, link});
 }
-function addNote ({mod, user, subreddit, note, warning = 'abusewarn', link, index = 0, timestamp = moment().unix()}) {
+function addNote ({mod, user, subreddit, note, warning = 'abusewarn', link, index, timestamp = moment().unix()}) {
   return getNotes(subreddit, {refresh: true}).then(parsed => {
     _.merge(parsed.notes, {[user]: {ns: []}});
+    index = index === undefined ? parsed.notes[user].ns.length : index;
     const newNote = {
       n: note,
       t: timestamp,
@@ -221,7 +222,7 @@ function addNote ({mod, user, subreddit, note, warning = 'abusewarn', link, inde
 function removeNote ({user, subreddit, index, requester}) {
   return getNotes(subreddit, {refresh: true}).then(parsed => {
     const name = _.findKey(parsed.notes, (obj, username) => username.toLowerCase() === user.toLowerCase());
-    if (name === -1 || parsed.notes[name].ns.length < index) {
+    if (!name || !_.isInteger(index) || !_.inRange(index, parsed.notes[name].ns.length)) {
       throw {error_message: 'Error: That note was not found.'};
     }
     const removedNote = parsed.notes[name].ns.splice(index, 1)[0];
