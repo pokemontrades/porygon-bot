@@ -4,9 +4,9 @@
   "version": "0.6.0",
   "description": "An irc bot for /r/pokemontrades moderators",
   "scripts": {
-    "start": "node --harmony-proxies --harmony-destructuring --harmony-default-parameters bot.js",
+    "start": "node --harmony-proxies bot.js",
     "pretest": "eslint .",
-    "test": "mocha --harmony-proxies --harmony-destructuring --harmony-default-parameters test/**/*"
+    "test": "mocha --harmony-proxies test/**/*"
   },
   "author": "Raia",
   "contributors": [
