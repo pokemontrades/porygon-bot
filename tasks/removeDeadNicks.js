@@ -1,16 +1,25 @@
 'use strict';
 const _ = require('lodash');
 const Promise = require('bluebird');
-const REGISTERED_NICK_REGEX = /(?:~R:)?([a-zA-Z\[\]\\`_\^\{\|\}][a-zA-Z0-9\[\]\\`_\^\{\|\}-]{1,31})(?:!\*@\*)?/;
+const REGISTERED_NICK_REGEX = /~R:([a-zA-Z\[\]\\`_\^\{\|\}][a-zA-Z0-9\[\]\\`_\^\{\|\}-]{1,31})(?:!\*@\*)?/;
 module.exports = {
   period: 60 * 60 * 24,
+  onStart: true,
   task ({bot, channel}) {
     const memoizedCheck = _.memoize(_.partial(checkNickRegistered, bot));
     return getInviteList(bot, channel)
       .filter(isValidNick)
       .filter(nick => memoizedCheck(nick.replace(REGISTERED_NICK_REGEX, '$1')).then(isRegistered => !isRegistered))
-      .each(nick => unInvite(bot, channel, nick))
-      .return();
+      .then(nicks => {
+        if (nicks.length) {
+          return [
+            `Warning: the following nicks are on this channel's invite list, but they are no longer registered with NickServ. Please${''
+            } consider temporarily removing these users from the invite list (using \`/mode ${channel} -I ~R:putTheNickHere\`) and ${''
+            }telling them to re-register their nick with NickServ.`,
+            nicks.join(', ')
+          ];
+        }
+      });
   }
 };
 
@@ -37,14 +46,14 @@ function getInviteList (bot, channel) {
 
 /*
 ** Returns `true` if the given `mask` is a valid nick; otherwise, returns `false`.
-** In this context, a "valid nick" is defined as a mask that contains a nick, no ident, and no host.
+** In this context, a "valid nick" is defined as a registered mask that contains a nick, no ident, and no host.
 ** Porygon-Bot will only remove masks from the invite list if they are valid nicks.
 ** Valid nicks:
-**   not_an_aardvark
 **   ~R:not_an_aardvark
-**   not_an_aardvark!*@*
 **   ~R:not_an_aardvark!*@*
 ** Invalid nicks:
+**   not_an_aardvark
+**   not_an_aardvark!*@*
 **   *!*@12345678.12345678.12345678.IP
 **   not_an_aardvark!naa@*
 */
@@ -92,11 +101,4 @@ function checkNickRegistered (bot, nick) {
   return waitForThrottle()
     .then(() => bot.say('NickServ', `INFO ${nick}`))
     .then(() => awaitResponse().timeout(10000, `Timed out waiting for NickServ response to see whether the nick '${nick}' is registered`));
-}
-
-/* Removes the given `nick` from `channel`'s invite list.
-** Returns a Promise that fulfills when the removal has been completed successfully, or rejects if an error occurs. */
-function unInvite (bot, channel, nick) {
-  bot.send('mode', channel, '-I', nick);
-  return Promise.resolve(); // TODO: Add better error handling if a user cannot be removed for some reason
 }

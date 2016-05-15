@@ -7,7 +7,8 @@ module.exports = {
       2,
       'always'
     ],
-	'no-console': 0
+    'no-console': 0,
+    'no-control-regex': 0
   },
   env: {
     es6: true,
