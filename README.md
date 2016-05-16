@@ -6,6 +6,8 @@ An IRC bot created by the /r/pokemontrades team for our use.
 * .msg
 * .checkball
 * .checkfc
+* Logging reported items from reddit
+* Manipulating reddit toolbox usernotes
 * Shortcuts
 
 ## Installation
@@ -14,4 +16,11 @@ An IRC bot created by the /r/pokemontrades team for our use.
 * edit config.js and update information
 
 ## Usage
-* `node --harmony-default-parameters --harmony-destructuring --harmony-proxies bot.js`
+* Node 6+:
+```
+node bot.js
+```
+* Node 4-5:
+```
+node --harmony-default-parameters --harmony-destructuring --harmony-proxies bot.js
+```
