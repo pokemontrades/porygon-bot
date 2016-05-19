@@ -5,7 +5,7 @@ module.exports = {
   db_required: true,
   message_regex: /^.*$/,
   events: ['message','join','action'],
-  response: function ({bot, message_match, author_match, channel, isAuthenticated}) {
+  response: function ({bot, message_match, author_match, channel, isAuthenticated, eventType}) {
     var prompt = message_match[0];
     var author = author_match[0];
     var responses = [];
@@ -46,7 +46,7 @@ module.exports = {
         }
     }
     if (isAuthenticated) {
-        responses.push(checkMessages(author, bot));
+        responses.push(checkMessages(author, bot, eventType === 'join' ? channel : null));
     }
     return responses;
   }
@@ -90,7 +90,7 @@ function saveMessage(sql, params, nick) {
 /*
  * Checks and delivers messages for the given user.
  */
-function checkMessages(nick, bot) {
+function checkMessages(nick, bot, channel) {
     return db.conn.query('SELECT * from Message M ' +
     'JOIN User U ON M.TargetID = U.UserID ' +
     'JOIN Nick N ON U.UserID = N.UserID ' +
@@ -101,7 +101,7 @@ function checkMessages(nick, bot) {
             var target_channel = message.Location;
             if (message.Location.indexOf("#") != 0) {
                 target_channel = nick;
-            } else if (!(nick in bot.chans[message.Location].users)) {
+            } else if (!(nick in bot.chans[message.Location].users) || channel && channel !== target_channel) {
                 continue;
             }
             var output = nick + ": " + message.MessageText + " (from " +
