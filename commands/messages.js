@@ -10,7 +10,7 @@ module.exports = {
     var author = author_match[0];
     var responses = [];
     // !msg
-    if (prompt.toLowerCase().indexOf('msg') == 1 || prompt.toLowerCase().indexOf('tell') == 1) {
+    if (prompt.toLowerCase().indexOf('msg') == 1 || prompt.toLowerCase().indexOf('tell') == 1 || prompt.toLowerCase().indexOf('ask') == 1) {
         var message = getMessage(prompt);
 
         // no empty messages
