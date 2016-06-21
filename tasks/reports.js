@@ -21,6 +21,7 @@ module.exports = {
 };
 
 function formatItem (item) {
-  const permalink = item.constructor.name === 'Comment' ? item.link_url + item.id : item.url;
-  return `[New report] ${item.constructor.name} by /u/${item.author.name}: ${permalink}`;
+  const permalink = item.constructor.name === 'Submission' ? `https://redd.it/${item.id}` : `https://reddit.com/r/${item.subreddit.display_name}/comments/${item.link_id.slice(3)}/-/${item.id}`;
+  const reportReason = item.user_reports.length ? item.user_reports[0][0] : item.mod_reports.length ? item.mod_reports[0][0] : '';
+  return `[New report]: "${reportReason}" (on ${item.constructor.name.toLowerCase()} by /u/${item.author.name}, ${permalink} )`;
 }
