@@ -20,7 +20,7 @@ function formatted_ball_name (ball_name) {
 }
 
 module.exports = {
-  message_regex: /^.checkball ([^ ]+)(?: ([^ ]+))?/i,
+  message_regex: /^\.checkball ([^ ]+)(?: ([^ ]+))?/i,
   response: function ({message_match}) {
     let pokemon = pokemon_corrections[message_match[1].toLowerCase()] || message_match[1].toLowerCase();
     var pokemon_data = ball_data.legal[pokemon];

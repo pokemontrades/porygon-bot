@@ -2,7 +2,7 @@ var db = require('../services/db');
 
 module.exports = {
     db_required: true,
-    message_regex: /^.settimezone\s*(\S*)?$/,
+    message_regex: /^\.settimezone\s*(\S*)?$/,
     response: function ({message_match, author_match, isAuthenticated}) {
         if (!isAuthenticated) {
             return "You must be authenticated to use this command.";
