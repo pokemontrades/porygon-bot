@@ -3,7 +3,7 @@ const db = require('../services/db');
 
 module.exports = {
   db_required: true,
-  message_regex: /^.(?:msg|tell|ask)\s+([^ ]+)\s+([^\s].*)$/,
+  message_regex: /^[\.!](?:msg|tell|ask)\s+([^ ]+)\s+([^\s].*)$/,
   allow: ({isMod, isAuthenticated}) => isMod && isAuthenticated,
   response ({bot, message_match: [, user, text], author_match: [author], channel}) {
     // no sending to the bot
