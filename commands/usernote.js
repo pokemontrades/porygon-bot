@@ -147,7 +147,7 @@ function getNotes (subreddit, {refresh = false} = {}) {
   });
 }
 function parseUrl (url) {
-  const urlParser = /^(?:(?:http(?:s?):\/\/)?(?:\w*\.)?reddit.com)?\/(?:r\/(\w{1,21})\/comments\/(\w*)(?:\/[\w-]*\/(\w*))?)|(?:message\/messages\/(\w*))/;
+  const urlParser = /^(?:(?:http(?:s?):\/\/)?(?:\w*\.)?reddit.com)?\/(?:r\/(\w{1,21})\/comments\/(\w*)(?:\/[^\/]*\/(\w*))?)|(?:message\/messages\/(\w*))/;
   const matched = url.match(urlParser);
   if (!matched) {
     throw {error_message: 'Error: The provided URL is invalid.'};
