@@ -258,7 +258,7 @@ function formatNote (note, subreddit) {
     if (note.l.charAt(0) === 'm') {
       link = `reddit.com/message/messages/${note.l.slice(2)}`;
     } else if (note.l.slice(2).includes(',')) {
-      link = `reddit.com/comments/${note.l.slice(2).replace(/,/, '/-/')}`;
+      link = `reddit.com/r/${subreddit}/comments/${note.l.slice(2).replace(/,/, '/-/')}`;
     } else {
       link = `reddit.com/${note.l.slice(2)}`;
     }
