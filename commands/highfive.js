@@ -1,20 +1,21 @@
-var STACKABLE = false; // :(
-var stored = [];
+const STACKABLE = false; // :(
+const storedHands = new Map();
 module.exports = {
   message_regex: /(?:^|\s)(o\/|\\o)(?:\s|$)/i,
-  response: function ({message_match, author_match, isPM}) {
-    if (isPM) {
-      return;
+  allow: ({isPM}) => !isPM,
+  response: function ({message_match: [, message], author_match: [author], channel}) {
+    if (!storedHands.has(channel)) storedHands.set(channel, []);
+    const channelHands = storedHands.get(channel);
+
+    if (channelHands.length && channelHands[channelHands.length - 1].direction === 'left' && message === 'o/') {
+      return author + ' o/\\o ' + storedHands.get(channel).pop().author;
     }
-    if (stored.length && stored.slice(-1)[0].direction === 'left' && message_match[1] === 'o/') {
-      return author_match[0] + ' o/\\o ' + stored.pop().author;
+    if (channelHands.length && channelHands[channelHands.length - 1].direction === 'right' && message === '\\o') {
+      return channelHands.pop().author + ' o/\\o ' + author;
     }
-    if (stored.length && stored.slice(-1)[0].direction === 'right' && message_match[1] === '\\o') {
-      return stored.pop().author + ' o/\\o ' + author_match[0];
-    }
-    stored.push({author: author_match[0], direction: message_match[1] === 'o/' ? 'right' : 'left'});
-    if (!STACKABLE && stored.length > 1) {
-      stored = stored.slice(1);
+    channelHands.push({author, direction: message === 'o/' ? 'right' : 'left'});
+    if (!STACKABLE && channelHands.length > 1) {
+      channelHands.shift();
     }
   }
 };
