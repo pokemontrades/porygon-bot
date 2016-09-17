@@ -1,4 +1,4 @@
-var sha1 = data => require('crypto').createHash('sha1').update(Buffer(data)).digest();
+var sha1 = data => require('crypto').createHash('sha1').update(Buffer.from(data)).digest();
 function validateFC (fc) {
   fc = fc.replace(/-/g, '');
   return /^\d{12}$/.test(fc) && sha1(new Uint32Array([fc]).buffer)[0] >> 1 === fc / Math.pow(2, 32) >> 0;
