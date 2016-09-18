@@ -10,6 +10,7 @@ module.exports = {
   password: "super-secret-password",
   disable_db: false,
   dbHost: "http://localhost",
+  dbPort: 3306,
   dbUser: "mysql",
   dbPassword: "super-secret-password",
   database: "porygon_bot",
