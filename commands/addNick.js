@@ -5,10 +5,7 @@ module.exports = {
   db_required: true,
   message_regex: /^\.addnick ([^ ]+)(?: ([^ ]+))?/i,
   allow: ({isMod, isAuthenticated}) => isMod && isAuthenticated,
-  response: function ({message_match: [, newNick, targetUser], author_match: [author], isAuthenticated}) {
-    if (!isAuthenticated) {
-      return 'You must be authenticated to use this command.';
-    }
+  response: function ({message_match: [, newNick, targetUser], author_match: [author]}) {
     targetUser = targetUser || author;
 
     return db.conn.query('SELECT * FROM User U JOIN Nick N ON U.UserID = N.UserID WHERE N.Nickname LIKE ?', [targetUser]).get(0).then(targetUserMain => {

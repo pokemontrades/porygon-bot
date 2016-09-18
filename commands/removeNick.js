@@ -5,11 +5,7 @@ module.exports = {
   db_required: true,
   message_regex: /^\.removenick ([^ ]+)/i,
   allow: ({isMod, isAuthenticated}) => isMod && isAuthenticated,
-  response: function ({message_match: [, nick], author_match: [author], isAuthenticated}) {
-    if (!isAuthenticated) {
-      return 'You must be authenticated to use this command.';
-    }
-
+  response: function ({message_match: [, nick], author_match: [author]}) {
     return db.getMain(nick, (targetUserMain) => {
       if (!targetUserMain) {
         return 'There was an error. Do I even know that person?';
