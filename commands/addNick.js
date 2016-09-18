@@ -17,13 +17,7 @@ module.exports = {
         'INSERT INTO Nick (UserID, Nickname) VALUES (?, ?)',
         [targetUserMain.UserID, newNick])
         .return(`Added nick shortcut "${newNick}" for ${targetUserMain.MainNick}.`)
-        .catch(err => {
-          if (err.code == 'ER_DUP_ENTRY') {
-            return `The nick "${newNick}" already exists.`;
-          }
-        });
-
-
+        .catch({code: 'ER_DUP_ENTRY'}, () => `The nick "${newNick}" already exists.`);
     });
   }
 };
