@@ -14,7 +14,7 @@ module.exports = {
       if (!targetUserMain) {
         return 'There was an error. Do I even know that person?';
       }
-      if (nick == author) {
+      if (nick.toLowerCase() === author.toLowerCase()) {
         return 'You cannot delete your current nick.';
       }
 
