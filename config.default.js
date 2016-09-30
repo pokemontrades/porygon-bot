@@ -32,6 +32,6 @@ module.exports = {
   friendly: ["coolperson1", "coolperson2"],
   reddit_client_id: 'aaa',
   reddit_client_secret: 'bbb',
-  reddit_refresh_token: 'ccc', // Scope: privatemessages read wikiedit wikiread
+  reddit_refresh_token: 'ccc', // Scope: modposts privatemessages read submit wikiedit wikiread
   reddit_user_agent: 'Porygon IRC Helper'
 };

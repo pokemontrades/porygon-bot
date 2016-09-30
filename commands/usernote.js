@@ -1,11 +1,10 @@
 'use strict';
-var NodeCache = require('node-cache');
 var _ = require('lodash');
 var moment = require('moment');
 const Promise = require('bluebird');
-var r = require('../services/reddit.js');
 var parseArgs = require('minimist');
-var cache = new NodeCache({stdTTL: 900});
+const r = require('../services/reddit');
+const usernoteHelper = require('../services/usernote-helper');
 const removedNoteCache = [];
 const warningsToWords = {
   none: ['blue', 'none'],
@@ -71,7 +70,7 @@ module.exports = {
       if (!args.user) {
         throw {error_message: 'Error: No user provided. For help, try `.tag help`.'};
       }
-      return getNotes(args.subreddit, {refresh: args.refresh}).then(function (parsed) {
+      return usernoteHelper.getNotes(args.subreddit, {refresh: args.refresh}).then(function (parsed) {
         let notes = _.find(parsed.notes, function (obj, name) {
           if (name.toLowerCase() === args.user.toLowerCase()) {
             args.user = name;
@@ -93,7 +92,7 @@ module.exports = {
       if (!args.note) {
         throw {error_message: 'Error: Missing note text.'};
       }
-      return getMissingInfo(args).then(props => addNote({
+      return getMissingInfo(args).then(props => usernoteHelper.addNote({
           mod: author_match[0],
           user: props.user,
           subreddit: props.subreddit,
@@ -111,12 +110,13 @@ module.exports = {
       if (!_.isNumber(args._[1])) {
         throw {error_message: 'No index number provided. You must provide the index number of the note to remove.'};
       }
-      return removeNote({user: args.user, subreddit: args.subreddit, index: args._[1], requester: author_match[1]}).then(note => {
+      return usernoteHelper.removeNote({user: args.user, subreddit: args.subreddit, index: args._[1], requester: author_match[1]}).then(note => {
+        removedNoteCache.push(note);
         return ['Successfully deleted the following note. To undo this action, use ".tag undo-delete".', formatNote(note, args.subreddit)];
       }).catch(handleErrors);
     } else if (command === 'undo-delete') {
       const newNote = removedNoteCache.pop();
-      return addNote(newNote).then(result => (
+      return usernoteHelper.addNote(newNote).then(result => (
         [`Successfully recreated note on /u/${newNote.user} on /r/${newNote.subreddit}:`, formatNote(result, newNote.subreddit)]
       )).catch(err => {
         removedNoteCache.push(newNote);
@@ -129,23 +129,7 @@ module.exports = {
     }
   }
 };
-function decompressBlob (blob) {
-  return JSON.parse(require('zlib').inflateSync(new Buffer(blob, 'base64')));
-}
-function compressBlob (notesObject) {
-  return require('zlib').deflateSync(new Buffer(JSON.stringify(notesObject))).toString('base64');
-}
-function getNotes (subreddit, {refresh = false} = {}) {
-  const cached_notes = cache.get(subreddit);
-  if (cached_notes && !refresh) {
-    return Promise.resolve(cached_notes);
-  }
-  return r.get_subreddit(subreddit).get_wiki_page('usernotes').content_md.then(JSON.parse).then(pageObject => {
-    const parsed = _(pageObject).assign({notes: decompressBlob(pageObject.blob)}).omit('blob').value();
-    cache.set(subreddit, parsed);
-    return parsed;
-  });
-}
+
 function parseUrl (url) {
   const urlParser = /^(?:(?:http(?:s?):\/\/)?(?:\w*\.)?reddit.com)?\/(?:r\/(\w{1,21})\/comments\/(\w*)(?:\/[^\/]*\/(\w*))?)|(?:message\/messages\/(\w*))/;
   const matched = url.match(urlParser);
@@ -198,58 +182,9 @@ function getMissingInfo ({user: providedUser, subreddit: providedSubreddit, link
   const subreddit = providedSubreddit || parsedUrl.subreddit || contentObject.subreddit.display_name;
   return Promise.props({user, subreddit, link});
 }
-function addNote ({mod, user, subreddit, note, warning = 'abusewarn', link, index, timestamp = moment().unix()}) {
-  return getNotes(subreddit, {refresh: true}).then(parsed => {
-    _.merge(parsed.notes, {[user]: {ns: []}});
-    index = index === undefined ? parsed.notes[user].ns.length : index;
-    const newNote = {
-      n: note,
-      t: timestamp,
-      m: (parsed.constants.users.indexOf(mod) + 1 || parsed.constants.users.push(mod)) - 1,
-      w: (parsed.constants.warnings.indexOf(warning) + 1 || parsed.constants.warnings.push(warning)) - 1,
-      l: link
-    };
-    parsed.notes[user].ns.splice(index, 0, newNote);
-    return r.get_subreddit(subreddit).get_wiki_page('usernotes').edit({
-      text: JSON.stringify(_(parsed).assign({blob: compressBlob(parsed.notes)}).omit('notes').value()),
-      reason: `Added a note on /u/${user} (on behalf of ${mod})`
-    }).then(() => {
-      cache.set(subreddit, parsed);
-      return newNote;
-    });
-  });
-}
-function removeNote ({user, subreddit, index, requester}) {
-  return getNotes(subreddit, {refresh: true}).then(parsed => {
-    const name = _.findKey(parsed.notes, (obj, username) => username.toLowerCase() === user.toLowerCase());
-    if (!name || !_.isInteger(index) || !_.inRange(index, parsed.notes[name].ns.length)) {
-      throw {error_message: 'Error: That note was not found.'};
-    }
-    const removedNote = parsed.notes[name].ns.splice(index, 1)[0];
-    if (!parsed.notes[name].ns.length) {
-      delete parsed.notes[name];
-    }
-    return r.get_subreddit(subreddit).get_wiki_page('usernotes').edit({
-      text: JSON.stringify(_(parsed).assign({blob: compressBlob(parsed.notes)}).omit('notes').value()),
-      reason: `Removed a note on /u/${user}${requester ? `(on behalf of ${requester})` : ''}`
-    }).then(() => {
-      removedNoteCache.push({
-        mod: parsed.constants.users[removedNote.m],
-        user,
-        subreddit,
-        note: removedNote.n,
-        warning: parsed.constants.warnings[removedNote.w],
-        link: removedNote.l,
-        index,
-        timestamp: removedNote.t
-      });
-      cache.set(subreddit, parsed);
-      return removedNote;
-    });
-  });
-}
+
 function formatNote (note, subreddit) {
-  let parsed = cache.get(subreddit);
+  let parsed = usernoteHelper.getNotesSync(subreddit);
   const color = warningsToWords[parsed.constants.warnings[note.w]][0];
   const author = parsed.constants.users[note.m];
   const timestamp = moment.unix(note.t).fromNow();
