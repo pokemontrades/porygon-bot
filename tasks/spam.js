@@ -44,7 +44,7 @@ module.exports = {
             thread.author.name,
             threadsByUser.get(thread.author.name)
               .filter(oldThread => oldThread.created_utc + SPAM_COOLDOWN > Date.now() / 1000)
-              .concat({url: getUrl(thread), created_utc: thread.created_utc, link_flair_css_class: thread.link_flair_css_class})
+              .concat({permalink: thread.permalink, created_utc: thread.created_utc, link_flair_css_class: thread.link_flair_css_class})
           );
         }
       }).filter(response => response);
