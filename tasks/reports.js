@@ -21,7 +21,7 @@ module.exports = {
 };
 
 function formatItem (item) {
-  const permalink = item.constructor.name === 'Comment' ? item.link_url.replace(/^https:\/\/oauth\./, 'https://www.') + item.id : `https://www.reddit.com${item.permalink}`;
+  const permalink = item.constructor.name === 'Comment' ? item.link_url + item.id : item.url;
   const reportReason = (item.user_reports.length ? item.user_reports[0][0] : item.mod_reports.length ? item.mod_reports[0][0] : '') || '<no reason>';
   return `[New report]: "${reportReason}" (on ${item.constructor.name.toLowerCase()} by /u/${item.author.name}, ${permalink} )`;
 }

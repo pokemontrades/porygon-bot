@@ -12,13 +12,9 @@ const handledThreadIds = new Set();
 
 const getSpamReply = (newThread, oldThread) => `Hello /u/${newThread.author.name},
 
-Sorry, but this thread has been removed because it violates [rule 7](/r/pokemontrades/wiki/rules). In the future, please do not post trade threads more often than once per 6 hours. (Your [other thread](${getUrl(oldThread)}) was posted more recently than 6 hours ago.)
+Sorry, but this thread has been removed because it violates [rule 7](/r/pokemontrades/wiki/rules). In the future, please do not post trade threads more often than once per 6 hours. (Your [other thread](${oldThread.url}) was posted more recently than 6 hours ago.)
 
 *This action was performed by a bot. If you think there was some mistake, please click the "report" button next to this comment, and a human will take a look at your post shortly.*`;
-
-function getUrl (thread) {
-  return `https://www.reddit.com${thread.permalink}`;
-}
 
 module.exports = {
   period: 60,
@@ -37,14 +33,14 @@ module.exports = {
 
         if (oldThread && thread.approved_by === null) {
           return thread.remove().reply(getSpamReply(thread, oldThread)).distinguish().return(
-            `[Spam notification]: The thread ${getUrl(thread)} by /u/${thread.author.name} breaks the spam rule, and has been removed. (Old thread: ${getUrl(oldThread)} )`
+            `[Spam notification]: The thread ${thread.url} by /u/${thread.author.name} breaks the spam rule, and has been removed. (Old thread: ${oldThread.url} )`
           ).tap(() => usernoteHelper.addNote({mod: nick, user: thread.author.name, subreddit: thread.subreddit.display_name, note: '6 hour rule', link: `l,${thread.id}`}));
         } else {
           threadsByUser.set(
             thread.author.name,
             threadsByUser.get(thread.author.name)
               .filter(oldThread => oldThread.created_utc + SPAM_COOLDOWN > Date.now() / 1000)
-              .concat({permalink: thread.permalink, created_utc: thread.created_utc, link_flair_css_class: thread.link_flair_css_class})
+              .concat({url: thread.url, created_utc: thread.created_utc, link_flair_css_class: thread.link_flair_css_class})
           );
         }
       }).filter(response => response);
