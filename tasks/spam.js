@@ -34,7 +34,7 @@ module.exports = {
         if (oldThread && thread.approved_by === null) {
           return thread.remove().reply(getSpamReply(thread, oldThread)).distinguish().return(
             `[Spam notification]: The thread ${thread.url} by /u/${thread.author.name} breaks the spam rule, and has been removed. (Old thread: ${oldThread.url} )`
-          ).tap(() => usernoteHelper.addNote({mod: nick, user: thread.author.name, subreddit: thread.subreddit.display_name, note: '6 hour rule', link: `l,${thread.id}`}));
+          ).tap(() => usernoteHelper.addNote({mod: nick, user: thread.author.name, subreddit: thread.subreddit.display_name, note: '6 hour rule', link: `l,${thread.id}`, index: 0}));
         } else {
           threadsByUser.set(
             thread.author.name,
