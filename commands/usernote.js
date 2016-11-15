@@ -3,9 +3,18 @@ var _ = require('lodash');
 var moment = require('moment');
 const Promise = require('bluebird');
 var parseArgs = require('minimist');
+try {
+  var moduleConfig = require('../config.js').usernoteConfig;
+  if (!moduleConfig.channelPermissions) {
+    console.log("The usernote module config file does not contain channelPermissions section. Usernotes may be managed for any subreddit on any channel the module is enabled in.");
+  }
+} catch(err) {
+  console.log("No config file found for usernote module. Usernotes may be managed for any subreddit on any channel the module is enabled in.");
+}
 const r = require('../services/reddit');
 const usernoteHelper = require('../services/usernote-helper');
-const removedNoteCache = [];
+const removedNoteCache = Object.create(null);
+const channelCacheMaxLength = moduleConfig && moduleConfig.channelCacheMaxLength ? moduleConfig.channelCacheMaxLength : 50;
 const warningsToWords = {
   none: ['blue', 'none'],
   gooduser: ['green', 'misc', 'misc.', 'miscellaneous'],
@@ -37,7 +46,7 @@ module.exports = {
   allow: function ({isPM, isAuthenticated, isMod}) {
     return !isPM && isAuthenticated && isMod;
   },
-  response: function ({message_match, author_match}) {
+  response: function ({message_match, author_match, channel}) {
     /* Split into words, but keep quoted blocks together. Also parse reddit usernames and correctly.
     e.g. '--option1 word --option2 "quoted block" otherword /u/someone /r/some_sub https://reddit.com/blah/'
     --> ['--option1', 'word', '--option2', 'quoted block', 'otherword', '--user', 'someone', '--subreddit', 'some_sub', '--link', 'reddit.com/blah/'] */
@@ -62,7 +71,7 @@ module.exports = {
     };
     let args = parseArgs(preparsedArgs, parseSettings);
     let command = args._.length ? args._[0].toLowerCase() : 'show';
-    args.subreddit = args.link || args.subreddit ? args.subreddit : 'pokemontrades';
+    args.subreddit = args.link || args.subreddit ? args.subreddit : (moduleConfig && moduleConfig.defaultSubreddit ? moduleConfig.defaultSubreddit : undefined);
     if (command === 'help' || args.help) {
       return usageForRegularPeople;
     }
@@ -70,7 +79,7 @@ module.exports = {
       if (!args.user) {
         throw {error_message: 'Error: No user provided. For help, try `.tag help`.'};
       }
-      return usernoteHelper.getNotes(args.subreddit, {refresh: args.refresh}).then(function (parsed) {
+      return usernoteHelper.getNotes(args.subreddit, channel, {refresh: args.refresh}).then(function (parsed) {
         let notes = _.find(parsed.notes, function (obj, name) {
           if (name.toLowerCase() === args.user.toLowerCase()) {
             args.user = name;
@@ -99,27 +108,34 @@ module.exports = {
           note: args.note,
           warning,
           link: props.link,
-          index: command === 'append' ? undefined : 0
+          index: command === 'append' ? undefined : 0,
+          fromChannel: channel
         }).then(result => [`Successfully added note on /u/${props.user}:`, `${formatNote(result, props.subreddit)}`])
       ).catch(handleErrors);
     } else if (['delete', 'rm', 'remove'].indexOf(command) !== -1) {
       if (!args.user) {
         throw {error_message: 'Error: No user provided'};
       }
-      args.subreddit = args.subreddit || 'pokemontrades';
+      if (!args.subreddit) {
+        if (moduleConfig && moduleConfig.defaultSubreddit) {
+           args.subreddit = moduleConfig.defaultSubreddit;
+        } else {
+          throw {error_message: 'No subreddit specified. You must specify a subreddit to remove the usernote from.'};
+        }
+      }
       if (!_.isNumber(args._[1])) {
         throw {error_message: 'No index number provided. You must provide the index number of the note to remove.'};
       }
-      return usernoteHelper.removeNote({user: args.user, subreddit: args.subreddit, index: args._[1], requester: author_match[1]}).then(note => {
-        removedNoteCache.push(note);
+      return usernoteHelper.removeNote({user: args.user, subreddit: args.subreddit, index: args._[1], requester: author_match[1], fromChannel: channel}).then(note => {
+        pushToCache(channel, note);
         return ['Successfully deleted the following note. To undo this action, use ".tag undo-delete".', formatNote(note, args.subreddit)];
       }).catch(handleErrors);
     } else if (command === 'undo-delete') {
-      const newNote = removedNoteCache.pop();
+      const newNote = popFromCache(channel);
       return usernoteHelper.addNote(newNote).then(result => (
         [`Successfully recreated note on /u/${newNote.user} on /r/${newNote.subreddit}:`, formatNote(result, newNote.subreddit)]
       )).catch(err => {
-        removedNoteCache.push(newNote);
+        pushToCache(channel, newNote);
         handleErrors(err);
       });
     } else if (command === 'options') {
@@ -200,6 +216,23 @@ function formatNote (note, subreddit) {
   }
   const content = note.n;
   return `"${content}" (${timestamp}, by ${author}${link ? `, on link ${link} ` : ''}, colored ${color})`;
+}
+function pushToCache (channel, note) {
+  if (channel in removedNoteCache) {
+    if (removedNoteCache[channel].length >= channelCacheMaxLength) {
+      removedNoteCache[channel].shift();
+    }
+    removedNoteCache[channel].push(note);
+  } else {
+    removedNoteCache[channel] = [note];
+  }
+}
+function popFromCache (channel) {
+  if (channel in removedNoteCache && removedNoteCache[channel].length > 0) {
+    return removedNoteCache[channel].pop();
+  } else {
+    throw {error_message: 'Error: There are no more notes in the bot\'s records.'};
+  }
 }
 function handleErrors (err) {
   throw _.assign(err, {
