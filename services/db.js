@@ -1,8 +1,8 @@
 exports.conn = null;
 exports.modules = {};
 exports.getMain = function(nick, callback) {
-    return exports.conn.query('SELECT * FROM User U JOIN Nick N ON U.UserID = N.UserID WHERE N.Nickname LIKE ?',
-        ['%'+nick+'%']).then(function(result) {
+    return exports.conn.query('SELECT * FROM User U JOIN Nick N ON U.UserID = N.UserID WHERE N.Nickname =',
+        [nick]).then(function(result) {
             return callback(result[0]);
         }).catch(function(err) {
             console.log(err);
