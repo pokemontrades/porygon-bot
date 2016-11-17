@@ -8,6 +8,9 @@ var moduleConfig = require('../config.js').usernoteConfig;
 
 module.exports = {
   getNotes (subreddit, fromChannel, {refresh = false} = {}) {
+    if (typeof subreddit !== 'string') {
+      throw {error_message: 'Error: No subreddit provided.'};
+    }
     checkAccess({channel: fromChannel, subreddit: subreddit});
     const cached_notes = cache.get(subreddit);
     if (cached_notes && !refresh) {
