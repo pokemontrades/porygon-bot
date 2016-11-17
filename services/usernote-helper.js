@@ -4,8 +4,11 @@ const moment = require('moment');
 const r = require('./reddit');
 const cache = new (require('node-cache'))({stdTTL: 900});
 
+var moduleConfig = require('../config.js').usernoteConfig;
+
 module.exports = {
-  getNotes (subreddit, {refresh = false} = {}) {
+  getNotes (subreddit, fromChannel, {refresh = false} = {}) {
+    checkAccess({channel: fromChannel, subreddit: subreddit});
     const cached_notes = cache.get(subreddit);
     if (cached_notes && !refresh) {
       return Promise.resolve(cached_notes);
@@ -19,8 +22,9 @@ module.exports = {
   getNotesSync(subreddit) {
     return cache.get(subreddit);
   },
-  addNote ({mod, user, subreddit, note, warning = 'abusewarn', link, index, timestamp = moment().unix()}) {
-    return module.exports.getNotes(subreddit, {refresh: true}).then(parsed => {
+  addNote ({mod, user, subreddit, note, warning = 'abusewarn', link, index, timestamp = moment().unix(), fromChannel}) {
+    checkAccess({channel: fromChannel, subreddit: subreddit});
+    return module.exports.getNotes(subreddit, fromChannel, {refresh: true}).then(parsed => {
       _.merge(parsed.notes, {[user]: {ns: []}});
       index = index === undefined ? parsed.notes[user].ns.length : index;
       const newNote = {
@@ -41,8 +45,9 @@ module.exports = {
     });
   },
 
-  removeNote ({user, subreddit, index, requester}) {
-    return module.exports.getNotes(subreddit, {refresh: true}).then(parsed => {
+  removeNote ({user, subreddit, index, requester, fromChannel}) {
+    checkAccess({channel: fromChannel, subreddit: subreddit});
+    return module.exports.getNotes(subreddit, fromChannel, {refresh: true}).then(parsed => {
       const name = _.findKey(parsed.notes, (obj, username) => username.toLowerCase() === user.toLowerCase());
       if (!name || !_.isInteger(index) || !_.inRange(index, parsed.notes[name].ns.length)) {
         throw {error_message: 'Error: That note was not found.'};
@@ -69,12 +74,27 @@ module.exports = {
           link: removedNote.l,
           index,
           t: removedNote.t,
-          timestamp: removedNote.t
+          timestamp: removedNote.t,
+          fromChannel: fromChannel
         };
       });
     });
   }
 };
+
+function checkAccess ({channel, subreddit}) {
+
+  //Access is automatically granted if there is no channelPermissions block.
+  if (!moduleConfig || !moduleConfig.channelPermissions) return true;
+
+  //First check handles conditions where a channelPermissons block exists, but the entry for the channel either does not or is set to 'false'.
+  //Second check results in permission being granted if it set to 'true' or if the given subreddit is in the array of allowed subs for the channel.
+  if (moduleConfig.channelPermissions[channel] && (_.isBoolean(moduleConfig.channelPermissions[channel]) || moduleConfig.channelPermissions[channel].findIndex(sub => sub.toLowerCase() === subreddit.toLowerCase()) > -1)) {
+    return true;
+  }
+
+  throw {error_message: 'Access denied.'};
+}
 
 function decompressBlob (blob) {
   return JSON.parse(require('zlib').inflateSync(Buffer.from(blob, 'base64')));

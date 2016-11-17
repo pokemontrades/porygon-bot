@@ -33,5 +33,16 @@ module.exports = {
   reddit_client_id: 'aaa',
   reddit_client_secret: 'bbb',
   reddit_refresh_token: 'ccc', // Scope: modposts privatemessages read submit wikiedit wikiread
-  reddit_user_agent: 'Porygon IRC Helper'
+  reddit_user_agent: 'Porygon IRC Helper',
+
+  //For usernote module, if enabled:
+  usernoteConfig: {
+    defaultSubreddit: "yoursubreddit",
+    channelCacheMaxLength: 50,
+    channelPermissions: {
+      "#trusteduserchannel": true,                   //A 'true' value allows access to any usernotes the bot has access to.
+      "#otherchannel": ["yoursubreddit","othersub"], //If you wish to restrict access, an array can be used to specify which
+      "#yetanotherchannel": ["ASingleSub"]           //subreddits can be accessed in a given channel.
+    }
+  }
 };
