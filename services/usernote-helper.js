@@ -83,6 +83,12 @@ module.exports = {
 };
 
 function checkAccess ({channel, subreddit}) {
+  if (channel === null) {
+
+    // The channel should only be `null` when Porygon-Bot adds a note of its own accord (e.g. from the spam task.)
+    // It bypasses channel permissions.
+    return true;
+  }
 
   //Access is automatically granted if there is no channelPermissions block.
   if (!moduleConfig || !moduleConfig.channelPermissions) return true;
