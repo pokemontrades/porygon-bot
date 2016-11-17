@@ -1,8 +1,12 @@
 'use strict';
+const zlib = require('zlib');
 const _ = require('lodash');
+const Promise = require('bluebird');
 const moment = require('moment');
 const r = require('./reddit');
 const cache = new (require('node-cache'))({stdTTL: 900});
+const deflate = Promise.promisify(zlib.deflate);
+const inflate = Promise.promisify(zlib.inflate);
 
 var moduleConfig = require('../config.js').usernoteConfig;
 
@@ -14,9 +18,11 @@ module.exports = {
       return Promise.resolve(cached_notes);
     }
     return r.get_subreddit(subreddit).get_wiki_page('usernotes').content_md.then(JSON.parse).then(pageObject => {
-      const parsed = _.assign(_.omit(pageObject, 'blob'), {notes: decompressBlob(pageObject.blob)});
-      cache.set(subreddit, parsed);
-      return parsed;
+      return decompressBlob(pageObject.blob).then(notes => {
+        const parsed = _.assign(_.omit(pageObject, 'blob'), {notes});
+        cache.set(subreddit, parsed);
+        return parsed;
+      });
     });
   },
   getNotesSync(subreddit) {
@@ -35,9 +41,11 @@ module.exports = {
         l: link
       };
       parsed.notes[user].ns.splice(index, 0, newNote);
-      return r.get_subreddit(subreddit).get_wiki_page('usernotes').edit({
-        text: JSON.stringify(_(parsed).assign({blob: compressBlob(parsed.notes)}).omit('notes').value()),
-        reason: `Added a note on /u/${user} (on behalf of ${mod})`
+      return compressBlob(parsed.notes).then(blob => {
+        return r.get_subreddit(subreddit).get_wiki_page('usernotes').edit({
+          text: JSON.stringify(_.assign(_.omit(parsed, 'notes'), {blob})),
+          reason: `Added a note on /u/${user} (on behalf of ${mod})`
+        });
       }).then(() => {
         cache.set(subreddit, parsed);
         return newNote;
@@ -56,9 +64,11 @@ module.exports = {
       if (!parsed.notes[name].ns.length) {
         delete parsed.notes[name];
       }
-      return r.get_subreddit(subreddit).get_wiki_page('usernotes').edit({
-        text: JSON.stringify(_(parsed).assign({blob: compressBlob(parsed.notes)}).omit('notes').value()),
-        reason: `Removed a note on /u/${user}${requester ? `(on behalf of ${requester})` : ''}`
+      return compressBlob(parsed.notes).then(blob => {
+        return r.get_subreddit(subreddit).get_wiki_page('usernotes').edit({
+          text: JSON.stringify(_.assign(_.omit(parsed, 'notes'), {blob})),
+          reason: `Removed a note on /u/${user}${requester ? `(on behalf of ${requester})` : ''}`
+        });
       }).then(() => {
         cache.set(subreddit, parsed);
         return {
@@ -103,9 +113,9 @@ function checkAccess ({channel, subreddit}) {
 }
 
 function decompressBlob (blob) {
-  return JSON.parse(require('zlib').inflateSync(Buffer.from(blob, 'base64')));
+  return inflate(Buffer.from(blob, 'base64')).then(JSON.parse);
 }
 
 function compressBlob (notesObject) {
-  return require('zlib').deflateSync(Buffer.from(JSON.stringify(notesObject))).toString('base64');
+  return deflate(Buffer.from(JSON.stringify(notesObject))).then(buf => buf.toString('base64'));
 }
