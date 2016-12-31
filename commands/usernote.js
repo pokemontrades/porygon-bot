@@ -87,9 +87,9 @@ module.exports = {
           }
         });
         if (notes) {
-          return Promise.map(notes.ns, note => formatNote(note, args.subreddit))
-            .map((note, index) => `(${index}) ${note}`)
-            .then(formattedNotes => [`Notes on /u/${args.user} on /r/${args.subreddit}:`].concat(formattedNotes));
+          return [`Notes on /u/${args.user} on /r/${args.subreddit}:`].concat(
+            notes.ns.map((note, i) => `(${i}) ${formatNote(note, args.subreddit)}`)
+          );
         }
         return `No notes found for /u/${args.user} on /r/${args.subreddit}.`;
       }).catch(handleErrors);
@@ -110,8 +110,7 @@ module.exports = {
           link: props.link,
           index: command === 'append' ? undefined : 0,
           fromChannel: channel
-        }).then(result => formatNote(result, props.subreddit))
-          .then(formattedNote => [`Successfully added note on /u/${props.user}:`, `${formattedNote}`])
+        }).then(result => [`Successfully added note on /u/${props.user}:`, `${formatNote(result, props.subreddit)}`])
       ).catch(handleErrors);
     } else if (['delete', 'rm', 'remove'].indexOf(command) !== -1) {
       if (!args.user) {
@@ -129,11 +128,11 @@ module.exports = {
       }
       return usernoteHelper.removeNote({user: args.user, subreddit: args.subreddit, index: args._[1], requester: author_match[1], fromChannel: channel}).then(note => {
         pushToCache(channel, note);
-        return Promise.all(['Successfully deleted the following note. To undo this action, use ".tag undo-delete".', formatNote(note, args.subreddit)]);
+        return ['Successfully deleted the following note. To undo this action, use ".tag undo-delete".', formatNote(note, args.subreddit)];
       }).catch(handleErrors);
     } else if (command === 'undo-delete') {
       const newNote = popFromCache(channel);
-      return usernoteHelper.addNote(newNote).then(result => Promise.all(
+      return usernoteHelper.addNote(newNote).then(result => (
         [`Successfully recreated note on /u/${newNote.user} on /r/${newNote.subreddit}:`, formatNote(result, newNote.subreddit)]
       )).catch(err => {
         pushToCache(channel, newNote);
@@ -201,23 +200,22 @@ function getMissingInfo ({user: providedUser, subreddit: providedSubreddit, link
 }
 
 function formatNote (note, subreddit) {
-  return usernoteHelper.getNotes(subreddit).then(parsedNotes => {
-    const color = warningsToWords[parsedNotes.constants.warnings[note.w]][0];
-    const author = parsedNotes.constants.users[note.m];
-    const timestamp = moment.unix(note.t).fromNow();
-    let link;
-    if (note.l) {
-      if (note.l.charAt(0) === 'm') {
-        link = `reddit.com/message/messages/${note.l.slice(2)}`;
-      } else if (note.l.slice(2).includes(',')) {
-        link = `reddit.com/r/${subreddit}/comments/${note.l.slice(2).replace(/,/, '/-/')}`;
-      } else {
-        link = `reddit.com/${note.l.slice(2)}`;
-      }
+  let parsed = usernoteHelper.getNotesSync(subreddit);
+  const color = warningsToWords[parsed.constants.warnings[note.w]][0];
+  const author = parsed.constants.users[note.m];
+  const timestamp = moment.unix(note.t).fromNow();
+  let link;
+  if (note.l) {
+    if (note.l.charAt(0) === 'm') {
+      link = `reddit.com/message/messages/${note.l.slice(2)}`;
+    } else if (note.l.slice(2).includes(',')) {
+      link = `reddit.com/r/${subreddit}/comments/${note.l.slice(2).replace(/,/, '/-/')}`;
+    } else {
+      link = `reddit.com/${note.l.slice(2)}`;
     }
-    const content = note.n;
-    return `"${content}" (${timestamp}, by ${author}${link ? `, on link ${link} ` : ''}, colored ${color})`;
-  });
+  }
+  const content = note.n;
+  return `"${content}" (${timestamp}, by ${author}${link ? `, on link ${link} ` : ''}, colored ${color})`;
 }
 function pushToCache (channel, note) {
   if (channel in removedNoteCache) {
