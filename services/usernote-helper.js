@@ -4,11 +4,22 @@ const _ = require('lodash');
 const Promise = require('bluebird');
 const moment = require('moment');
 const r = require('./reddit');
-const cache = new (require('node-cache'))({stdTTL: 900});
+const cache = new (require('node-cache'))({stdTTL: 900, useClones: false});
+const getFromCache = Promise.promisify(cache.get.bind(cache));
+const writeToCache = Promise.promisify(cache.set.bind(cache));
 const deflate = Promise.promisify(zlib.deflate);
 const inflate = Promise.promisify(zlib.inflate);
 
 var moduleConfig = require('../config.js').usernoteConfig;
+
+function fetchNotes (subreddit) {
+  return r.getSubreddit(subreddit).getWikiPage('usernotes').fetch().get('content_md').then(JSON.parse).then(pageObject => {
+    return decompressBlob(pageObject.blob).then(notes => {
+      const parsed = _.assign(_.omit(pageObject, 'blob'), {notes});
+      return writeToCache(subreddit, parsed).return(parsed);
+    });
+  });
+}
 
 module.exports = {
   getNotes (subreddit, fromChannel, {refresh = false} = {}) {
@@ -16,20 +27,7 @@ module.exports = {
       throw {error_message: 'Error: No subreddit provided.'};
     }
     checkAccess({channel: fromChannel, subreddit: subreddit});
-    const cached_notes = cache.get(subreddit);
-    if (cached_notes && !refresh) {
-      return Promise.resolve(cached_notes);
-    }
-    return r.get_subreddit(subreddit).get_wiki_page('usernotes').content_md.then(JSON.parse).then(pageObject => {
-      return decompressBlob(pageObject.blob).then(notes => {
-        const parsed = _.assign(_.omit(pageObject, 'blob'), {notes});
-        cache.set(subreddit, parsed);
-        return parsed;
-      });
-    });
-  },
-  getNotesSync(subreddit) {
-    return cache.get(subreddit);
+    return refresh ? fetchNotes(subreddit) : getFromCache(subreddit).then(notes => notes || fetchNotes(subreddit));
   },
   addNote ({mod, user, subreddit, note, warning = 'abusewarn', link, index, timestamp = moment().unix(), fromChannel}) {
     checkAccess({channel: fromChannel, subreddit: subreddit});
@@ -45,14 +43,11 @@ module.exports = {
       };
       parsed.notes[user].ns.splice(index, 0, newNote);
       return compressBlob(parsed.notes).then(blob => {
-        return r.get_subreddit(subreddit).get_wiki_page('usernotes').edit({
+        return r.getSubreddit(subreddit).getWikiPage('usernotes').edit({
           text: JSON.stringify(_.assign(_.omit(parsed, 'notes'), {blob})),
           reason: `Added a note on /u/${user} (on behalf of ${mod})`
         });
-      }).then(() => {
-        cache.set(subreddit, parsed);
-        return newNote;
-      });
+      }).tap(() => writeToCache(subreddit, parsed)).return(newNote);
     });
   },
 
@@ -72,24 +67,21 @@ module.exports = {
           text: JSON.stringify(_.assign(_.omit(parsed, 'notes'), {blob})),
           reason: `Removed a note on /u/${user}${requester ? `(on behalf of ${requester})` : ''}`
         });
-      }).then(() => {
-        cache.set(subreddit, parsed);
-        return {
-          m: removedNote.m,
-          mod: parsed.constants.users[removedNote.m],
-          user,
-          subreddit,
-          n: removedNote.n,
-          note: removedNote.n,
-          w: removedNote.w,
-          warning: parsed.constants.warnings[removedNote.w],
-          l: removedNote.l,
-          link: removedNote.l,
-          index,
-          t: removedNote.t,
-          timestamp: removedNote.t,
-          fromChannel: fromChannel
-        };
+      }).tap(() => writeToCache(subreddit, parsed)).return({
+        m: removedNote.m,
+        mod: parsed.constants.users[removedNote.m],
+        user,
+        subreddit,
+        n: removedNote.n,
+        note: removedNote.n,
+        w: removedNote.w,
+        warning: parsed.constants.warnings[removedNote.w],
+        l: removedNote.l,
+        link: removedNote.l,
+        index,
+        t: removedNote.t,
+        timestamp: removedNote.t,
+        fromChannel: fromChannel
       });
     });
   }
