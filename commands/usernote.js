@@ -16,14 +16,16 @@ const usernoteHelper = require('../services/usernote-helper');
 const removedNoteCache = Object.create(null);
 const channelCacheMaxLength = moduleConfig && moduleConfig.channelCacheMaxLength ? moduleConfig.channelCacheMaxLength : 50;
 const warningsToWords = {
-  none: ['blue', 'none'],
-  gooduser: ['green', 'misc', 'misc.', 'miscellaneous'],
+  none: ['none', 'uncolored'],
+  gooduser: ['light green'],
+  misc: ['blue', 'green', 'misc', 'misc.', 'miscellaneous'],
   spamwatch: ['pink', 'sketchy'],
   spamwarn: ['purple', 'flair', 'fc'],
   abusewarn: ['yellow', 'orange', 'minor warning', 'warn', 'warning'],
   ban: ['red', 'major warning', 'tempban', 'light red'],
   permban: ['brown', 'dark red', 'permaban', 'permanent ban'],
-  botban: ['black', 'old', 'general']
+  botban: ['dark gray','dark grey'],
+  old: ['black', 'old', 'general']
 };
 let warningTypes = _.keys(warningsToWords);
 let usageForNerds = 'Usage: .tag [show | add | append] < -n|--note> "<note>" < --user <username> | /u/<username> >\
@@ -202,7 +204,7 @@ function getMissingInfo ({user: providedUser, subreddit: providedSubreddit, link
 
 function formatNote (note, subreddit, channel) {
   return usernoteHelper.getNotes(subreddit, channel).then(parsedNotes => {
-    const color = warningsToWords[parsedNotes.constants.warnings[note.w]][0];
+    const color = warningsToWords[parsedNotes.constants.warnings[note.w] || 'none'][0];
     const author = parsedNotes.constants.users[note.m];
     const timestamp = moment.unix(note.t).fromNow();
     let link;
@@ -216,7 +218,7 @@ function formatNote (note, subreddit, channel) {
       }
     }
     const content = note.n;
-    return `"${content}" (${timestamp}, by ${author}${link ? `, on link ${link} ` : ''}, colored ${color})`;
+    return `"${content}" (${timestamp}, by ${author}${link ? `, on link ${link} ` : ''}, ${color === 'none' ? 'no color' : 'colored '+color})`;
   });
 }
 function pushToCache (channel, note) {
