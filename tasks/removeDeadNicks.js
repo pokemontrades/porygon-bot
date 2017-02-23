@@ -5,6 +5,7 @@ const REGISTERED_NICK_REGEX = /~R:([a-zA-Z\[\]\\`_\^\{\|\}][a-zA-Z0-9\[\]\\`_\^\
 module.exports = {
   period: 60 * 60 * 24,
   onStart: true,
+  concurrent: true,
   task ({bot, channel}) {
     const memoizedCheck = _.memoize(_.partial(checkNickRegistered, bot));
     return getInviteList(bot, channel)

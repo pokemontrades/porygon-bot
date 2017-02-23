@@ -171,7 +171,7 @@ function executeTask(taskName) {
   const iteratee = params.concurrent ? params.task : _.once(params.task);
   _.forOwn(config.tasks, (channelConfig, channel) => {
     if (checkEnabled(channel, taskName, channelConfig)) {
-      outputResponse(channel, iteratee({bot, channel}));
+      outputResponse(channel, iteratee({bot, channel: params.concurrent ? channel : null}));
     }
   });
 }
