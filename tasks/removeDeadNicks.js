@@ -63,7 +63,7 @@ function isValidNick (mask) {
 }
 
 let throttle = Promise.resolve();
-const THROTTLE_DELAY = 1000;
+const THROTTLE_DELAY = 5000;
 
 /* Throttles requests by returning Promises. If this function is called 5 times, the first returned Promise will fulfill
 ** immediately, the second returned Promise will fulfill after 1 second, the third returned Promise will fulfill after 2
@@ -79,7 +79,6 @@ function waitForThrottle () {
 /* Checks whether the given `nick` is registered with NickServ.
 ** Returns a Promise that fulfills with `true` if the nick is registered, or `false` if the nick is not registered. */
 function checkNickRegistered (bot, nick) {
-  bot.say('NickServ', `INFO ${nick}`);
   const awaitResponse = () => {
     return new Promise(resolve => {
       bot.once('notice', (from, to, text) => {
