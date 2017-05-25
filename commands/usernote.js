@@ -65,6 +65,7 @@ module.exports = {
     });
     let parseSettings = {
       default: {type: 'yellow'},
+      string: ['subreddit', 'note', 'user', 'type', 'link', 'refresh'],
       boolean: ['refresh', 'help'],
       alias: {
         sub: 'subreddit', s: 'subreddit', text: 'note', n: 'note', u: 'user', color: 'type', c: 'type', warning: 'type',
