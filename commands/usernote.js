@@ -55,13 +55,18 @@ module.exports = {
     if (!message_match[1]) {
       return usageForRegularPeople;
     }
-    let splitIntoWords = /(http(?:s)?:\/\/)|(\/u\/)|(\/r\/)|([^\s"]+)|(?:"((\\")?(?:[^"\\]|\\\\|\\")*)")+/g;
+    let splitIntoWords = /([^\s"]+)|(?:"((\\")?(?:[^"\\]|\\\\|\\")*)")+/g;
     if (message_match[1].replace(splitIntoWords, '').trim()) {
       throw {error_message: 'Error: invalid string.'};
     }
     let preparsedArgs = message_match[1].match(splitIntoWords).map(function (str) {
-      return str.replace(/\\\\/g, '\\').replace(/\\"/g, '"').replace(/^"(.*)"$/, '$1').replace(/^\/?u\/$/, '--user')
-        .replace(/^\/?r\/$/, '--subreddit').replace(/^http(s?):\/\/$/, '--link');
+      return str
+        .replace(/\\\\/g, '\\')
+        .replace(/\\"/g, '"')
+        .replace(/^\/?u\//, '--user=')
+        .replace(/^\/?r\//, '--subreddit=')
+        .replace(/^http(s?):\/\//, '--link=')
+        .replace(/^"(.*)"$/, '$1');
     });
     let parseSettings = {
       default: {type: 'yellow'},
