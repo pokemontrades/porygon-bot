@@ -7,7 +7,7 @@ module.exports = {
   allow: ({isAuthenticated}) => isAuthenticated,
   response ({author_match: [nick], channel, eventType}) {
     return db.conn.query(
-      'SELECT * FROM Message M JOIN User U ON M.TargetID = U.UserID JOIN Alias A ON U.UserID = A.UserID WHERE A.Alias = ? GROUP BY M.MessageID',
+      'SELECT * FROM Message M JOIN User U ON M.TargetID = U.UserID JOIN Alias A ON U.UserID = A.UserID WHERE A.Alias = ? AND A.isNick = TRUE GROUP BY M.MessageID',
       [`${nick}`]
     ).map(message => {
       if (channel === message.Location || !message.Location.startsWith('#')) {

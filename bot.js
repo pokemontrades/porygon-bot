@@ -118,7 +118,7 @@ function checkIfUserIsMod (username) { // Returns a Promise that will resolve as
     if (config.disable_db || db.conn == null) {
         return Promise.resolve(true);
     }
-    return db.conn.query('SELECT * FROM User U JOIN Alias A ON U.UserID = A.UserID WHERE A.Alias = ?', [username]).then(res => !!res.length);
+    return db.conn.query('SELECT * FROM User U JOIN Alias A ON U.UserID = A.UserID WHERE A.Alias = ? AND A.isNick = TRUE', [username]).then(res => !!res.length);
 }
 
 function checkAuthenticated (username) { // Returns a Promise that will resolve as true if the user is identified, and false otherwise
