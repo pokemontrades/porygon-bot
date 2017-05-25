@@ -10,7 +10,7 @@ module.exports = {
     if (user.toLowerCase() === bot.nick.toLowerCase()) {
       return {response_type: 'action', message: `slaps ${author}.`};
     }
-    return db.conn.query('SELECT * FROM User U JOIN Nick N ON U.UserID = N.UserID WHERE N.Nickname = ?', [`${user}`]).get(0).then(mainInfo => {
+    return db.conn.query('SELECT * FROM User U JOIN Alias A ON U.UserID = A.UserID WHERE A.Alias = ?', [`${user}`]).get(0).then(mainInfo => {
       if (!mainInfo) {
         return 'There was an error. Do I even know that person?';
       }
