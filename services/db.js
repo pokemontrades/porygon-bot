@@ -1,6 +1,6 @@
 exports.conn = null;
 exports.modules = {};
-exports.getMain = function(nick, callback) {
+exports.getUserInfo = function(nick, callback) {
     return exports.conn.query('SELECT * FROM User U JOIN Alias A ON U.UserID = A.UserID WHERE A.Alias = ?',
         [nick]).then(function(result) {
             return callback(result[0]);
