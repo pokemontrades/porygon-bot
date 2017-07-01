@@ -4,7 +4,7 @@ const tls = require('tls');
 const Promise = require('bluebird');
 const moment = require('moment');
 
-const SITES = ['porybox.com', 'hq.porygon.co'];
+const SITES = ['porybox.com', 'hq.porygon.co', 'modapps.porygon.co'];
 
 module.exports = {
   period: 60 * 60 * 24,
