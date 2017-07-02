@@ -27,6 +27,6 @@ module.exports = {
 
 function getSecureSocket(host) {
   return new Promise(resolve => {
-    const socket = tls.connect({host, port: 443, rejectUnauthorized: false}, () => resolve(socket));
+    const socket = tls.connect({host, servername: host, port: 443, rejectUnauthorized: false}, () => resolve(socket));
   });
 }
