@@ -70,11 +70,11 @@ module.exports = {
     });
     let parseSettings = {
       default: {type: 'yellow'},
-      string: ['subreddit', 'note', 'user', 'type', 'link', 'refresh'],
-      boolean: ['refresh', 'help'],
+      string: ['subreddit', 'note', 'user', 'type', 'link', 'refresh', 'all'],
+      boolean: ['refresh', 'help', 'all'],
       alias: {
         sub: 'subreddit', s: 'subreddit', text: 'note', n: 'note', u: 'user', color: 'type', c: 'type', warning: 'type',
-        url: 'link', l: 'link', 'refresh-cache': 'refresh'
+        url: 'link', l: 'link', 'refresh-cache': 'refresh', a: 'all'
       }
     };
     let args = parseArgs(preparsedArgs, parseSettings);
@@ -95,16 +95,31 @@ module.exports = {
           }
         });
         if (notes) {
-          return Promise.map(notes.ns, note => formatNote(note, args.subreddit, channel))
-            .map((note, index) => `(${index}) ${note}`)
-            .then(formattedNotes => [`Notes on /u/${args.user} on /r/${args.subreddit}:`].concat(formattedNotes));
+          if(!(args.all === false)) {
+              return Promise.map(notes.ns, note => formatNote(note, args.subreddit, channel))
+                .map((note, index) => `(${index}) ${note}`)
+                .then(formattedNotes => [`Notes on /u/${args.user} on /r/${args.subreddit}:`].concat(formattedNotes));
+          } else {
+              return Promise.map(notes.ns, note => formatNote(note, args.subreddit, channel))
+                .map((note, index) => { 
+                  if(index<=4) {
+                    return `(${index}) ${note}`;
+                  }
+                })
+                .then(formattedNotes => [`Notes on /u/${args.user} on /r/${args.subreddit}:`].concat(formattedNotes))
+                .then(array => {
+                  var notesRemaining = _.size(notes.ns) >= 5 ? _.size(notes.ns) - 5 : _.size(notes.ns);
+                  return array.concat([`... and ${notesRemaining} more usernotes. Use \`.tag /u/username --all\` to display all.`]);
+                });
+          }
+          
         }
         return `No notes found for /u/${args.user} on /r/${args.subreddit}.`;
       }).catch(handleErrors);
     } else if (['add', 'create', 'append'].indexOf(command) !== -1) {
       let warning = wordsToWarnings[args.type];
       if (!warning) {
-        throw {error_message: `Error: Unknown note type '${args.type}'`};
+        throw {error_message: `Error: Un nown note type '${args.type}'`};
       }
       if (!args.note) {
         throw {error_message: 'Error: Missing note text.'};
