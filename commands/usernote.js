@@ -29,7 +29,7 @@ const warningsToWords = {
 };
 let warningTypes = _.keys(warningsToWords);
 let usageForNerds = 'Usage: .tag [show | add | append] < -n|--note> "<note>" < --user <username> | /u/<username> >\
- [--sub <subreddit> | /r/<subreddit>] [--url <url> | https://<url>] [--color <color>] [--refresh | --refresh-cache]';
+ [--sub <subreddit> | /r/<subreddit>] [--url <url> | https://<url>] [--color <color>] [--refresh | --refresh-cache] [--all]';
 let usageForRegularPeople = 'To view /u/username\'s tags on /r/pokemontrades: .tag /u/username\n\
 To view /u/username\'s tags on /r/somewhere_else: .tag /u/username /r/somewhere_else\n\
 To add a tag: .tag add --note "Note text goes here" https://reddit.com/some_link\n\
@@ -70,11 +70,11 @@ module.exports = {
     });
     let parseSettings = {
       default: {type: 'yellow'},
-      string: ['subreddit', 'note', 'user', 'type', 'link', 'refresh'],
-      boolean: ['refresh', 'help'],
+      string: ['subreddit', 'note', 'user', 'type', 'link'],
+      boolean: ['refresh', 'help', 'all'],
       alias: {
         sub: 'subreddit', s: 'subreddit', text: 'note', n: 'note', u: 'user', color: 'type', c: 'type', warning: 'type',
-        url: 'link', l: 'link', 'refresh-cache': 'refresh'
+        url: 'link', l: 'link', 'refresh-cache': 'refresh', a: 'all'
       }
     };
     let args = parseArgs(preparsedArgs, parseSettings);
@@ -95,8 +95,16 @@ module.exports = {
           }
         });
         if (notes) {
-          return Promise.map(notes.ns, note => formatNote(note, args.subreddit, channel))
+          return Promise.map(
+            args.all ? notes.ns : notes.ns.slice(0,5),
+            note => formatNote(note, args.subreddit, channel)
+          )
             .map((note, index) => `(${index}) ${note}`)
+            .then(formattedNotes =>
+                formattedNotes.length < notes.ns.length
+                  ? formattedNotes.concat(`...and ${notes.ns.length - formattedNotes.length} more (use --all to display).`)
+                  : formattedNotes
+            )
             .then(formattedNotes => [`Notes on /u/${args.user} on /r/${args.subreddit}:`].concat(formattedNotes));
         }
         return `No notes found for /u/${args.user} on /r/${args.subreddit}.`;
