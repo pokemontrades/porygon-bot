@@ -44,7 +44,7 @@ for (let i = 0; i < warningTypes.length; i++) {
 }
 
 module.exports = {
-  message_regex: /^\.(?:usernote|tag)(?: (.*)|$)/,
+  message_regex: /^\.(?:usernote|tag|tags)(?: (.*)|$)/,
   allow: function ({isPM, isAuthenticated, isMod}) {
     return !isPM && isAuthenticated && isMod;
   },
