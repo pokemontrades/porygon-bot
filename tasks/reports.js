@@ -16,7 +16,7 @@ module.exports = {
       items.forEach(item => reportedItemNames.add(item.name));
       hasFinishedFirstRun = true;
       return newItemsToReport.map(formatItem);
-    });
+    }).catch((e) => console.log(`Error fetching subreddit reports. Error code: ${e.statusCode}`));
   }
 };
 
