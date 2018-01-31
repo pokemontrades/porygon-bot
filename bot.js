@@ -1,53 +1,18 @@
 'use strict';
 const _ = require('lodash');
 const Promise = require('bluebird');
-var irc = require('irc');
-var mysql = require('promise-mysql');
 var config = require('./config');
 var db = require('./services/db');
 var commands = require('./commands');
 const tasks = require('./tasks');
 const warn = _.memoize(console.warn);
+const bot = require('./services/irc').setUp(config);
 
-if (!config.disable_db) {
-    mysql.createConnection({
-        host: config.dbHost,
-        user: config.dbUser,
-        port: config.dbPort,
-        password: config.dbPassword,
-        database: config.database,
-        timezone: 'Etc/UTC'
-    }).then(function(conn) {
-
-        db.conn = conn;
-
-        Object.keys(db.modules).forEach(function(event) {
-            Object.keys(db.modules[event]).forEach(function(name) {
-                if (commands[event] === undefined) {
-                    commands[event] = {};
-                }
-                commands[event][name] = db.modules[event][name];
-            });
-        });
-
-    }).catch(function(error) {
-        console.log("An error occurred while establishing a connection to the database. Details can be found below:\n"+error+"\nThe following modules, which require database connectivity, have been disabled: ["+db.listModules().join(", ")+"]");
-    });
-} else {
+if (config.disable_db) {
     console.log("The following modules, which require database connectivity, have been disabled: ["+db.listModules().join(", ")+"]");
+} else {
+    db.setUp(config, commands);
 }
-
-var bot = new irc.Client(config.server, config.nick, {
-    userName: config.userName,
-    realName: config.realName,
-    channels: _.isArray(config.channels) ? config.channels : _.keys(config.channels),
-    port: config.port,
-    secure: config.secure,
-    selfSigned: config.selfSigned,
-    certExpired: config.certExpired,
-    encoding: 'UTF-8',
-    password: config.password
-});
 
 function outputResponse(target, messages) {
     if (!messages) {
