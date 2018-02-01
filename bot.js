@@ -99,6 +99,8 @@ function executeCommands (event, author, channel, text) {
             Promise.join(checkIfUserIsMod(author), checkAuthenticated(author), (isMod, isAuthenticated) => {
                 if ((commands[event][i].allow || defaultAllow)({isPM, isMod, isAuthenticated})) {
                     outputResponse(target, commands[event][i].response({bot, message_match, author_match, channel, isMod, isAuthenticated, eventType: event, isPM}));
+                } else {
+                    outputResponse(target, "You are not authorised to run that command");
                 }
             }).catch(_.partial(handleError, target));
         }
