@@ -1,4 +1,5 @@
 module.exports = {
+  debug: false,
   server: "irc.synirc.net",
   port: 6669,
   secure : false,
