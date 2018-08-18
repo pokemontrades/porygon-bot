@@ -10,17 +10,24 @@ An IRC bot created by the /r/pokemontrades team for our use.
 * Manipulating reddit toolbox usernotes
 * Shortcuts
 
+## Pre-requisites
+
+* Node 6+ ([node installation instructions](https://nodejs.org/en/download/package-manager))
+* NPM or Yarn ([yarn installation instructions](https://yarnpkg.com/en/docs/install))
+
+Note: we recommend yarn due to it's improved caching and more reliable dependency installs, however npm should work just fine for the majority of people.
+
 ## Installation
-* `npm install`
+* `yarn` or `npm install`
 * `mv config.default.js config.js`
 * edit config.js and update information
 
 ## Usage
-* Node 6+:
+* With Yarn:
 ```
-node bot.js
+yarn start
 ```
-* Node 4-5:
+* With NPM:
 ```
-node --harmony-default-parameters --harmony-destructuring --harmony-proxies bot.js
+npm start
 ```
