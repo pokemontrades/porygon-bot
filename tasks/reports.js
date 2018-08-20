@@ -1,5 +1,8 @@
 'use strict';
 const r = require('../services/reddit');
+if (!r) {
+  return;
+}
 let reportedItemNames = new Set();
 let hasFinishedFirstRun = false;
 

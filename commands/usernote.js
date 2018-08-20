@@ -1,17 +1,21 @@
 'use strict';
+const r = require('../services/reddit');
+if (!r) {
+  return;
+}
+
 var _ = require('lodash');
 var moment = require('moment');
 const Promise = require('bluebird');
 var parseArgs = require('minimist');
 try {
-  var moduleConfig = require('../config.js').usernoteConfig;
+  var moduleConfig = require('../config.js').reddit.usernoteConfig;
   if (!moduleConfig.channelPermissions) {
     console.log("The usernote module config file does not contain channelPermissions section. Usernotes may be managed for any subreddit on any channel the module is enabled in.");
   }
 } catch(err) {
   console.log("No config file found for usernote module. Usernotes may be managed for any subreddit on any channel the module is enabled in.");
 }
-const r = require('../services/reddit');
 const usernoteHelper = require('../services/usernote-helper');
 const removedNoteCache = Object.create(null);
 const channelCacheMaxLength = moduleConfig && moduleConfig.channelCacheMaxLength ? moduleConfig.channelCacheMaxLength : 50;
