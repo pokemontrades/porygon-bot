@@ -1,9 +1,13 @@
 'use strict';
+const r = require('./reddit');
+if (!r) {
+  return;
+}
+
 const zlib = require('zlib');
 const _ = require('lodash');
 const Promise = require('bluebird');
 const moment = require('moment');
-const r = require('./reddit');
 const cache = new (require('node-cache'))({stdTTL: 900, useClones: false});
 const getFromCache = Promise.promisify(cache.get.bind(cache));
 const writeToCache = Promise.promisify(cache.set.bind(cache));

@@ -1,5 +1,8 @@
 'use strict';
 const r = require('../services/reddit');
+if (!r) {
+  return;
+}
 const usernoteHelper = require('../services/usernote-helper');
 const SUBREDDIT = 'pokemontrades';
 

@@ -26,7 +26,7 @@ function defaultAllow({isPM, isMod, isAuthenticated}) {
 ```
 
 * `isPM` - a `boolean` indicating whether the message was sent by PM
-* `isMod` - a `boolean` indicating whether the sender of the message is in the mod database. Warning: If `config.disable_db` is true, `isMod` will always be `true`.
+* `isMod` - a `boolean` indicating whether the sender of the message is in the mod database. Warning: If `config.db.enabled` is false, `isMod` will always be `true`.
 * `isAuthenticated` - a `boolean` indicating whether the sender of the message is authenticated with NickServ.
 
 ___

@@ -5,6 +5,9 @@ require('fs').readdirSync(__dirname + '/').forEach(function (file) {
     var name = file.replace('.js', '');
     var events = [];
     var include = require('./' + file);
+    if (!include) {
+        return;
+    }
     if (include.events) {
         events = include.events;
     } else {

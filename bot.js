@@ -6,12 +6,18 @@ var db = require('./services/db');
 var commands = require('./commands');
 const tasks = require('./tasks');
 const warn = _.memoize(console.warn);
-const bot = require('./services/irc').setUp(config);
+const bot = require('./services/irc').setUp(config.irc);
 
-if (config.disable_db) {
-    console.log("The following modules, which require database connectivity, have been disabled: ["+db.listModules().join(", ")+"]");
+if (!config.db) {
+    // Old config. Maybe we should give the user an option to rewrite the config
+    console.error("Config format has changed, please reformat");
+    process.exit(1);
+}
+
+if (config.db.enabled) {
+    db.setUp(config.db, commands);
 } else {
-    db.setUp(config, commands);
+    console.log("The following modules, which require database connectivity, have been disabled: ["+db.listModules().join(", ")+"]");
 }
 
 function outputResponse(target, messages) {
@@ -60,7 +66,7 @@ function executeCommands (event, author, channel, text) {
     for (let i in commands[event]) {
         let message_match = (commands[event][i].message_regex || /.*/).exec(text);
         let author_match = (commands[event][i].author_regex || /.*/).exec(author);
-        if (message_match && author_match && author !== bot.nick && (isPM || checkEnabled(channel, i, config.channels[channel]))) {
+        if (message_match && author_match && author !== bot.nick && (isPM || checkEnabled(channel, i, config.irc.channels[channel]))) {
             Promise.join(checkIfUserIsMod(author), checkAuthenticated(author), (isMod, isAuthenticated) => {
                 if ((commands[event][i].allow || defaultAllow)({isPM, isMod, isAuthenticated})) {
                     outputResponse(target, commands[event][i].response({bot, message_match, author_match, channel, isMod, isAuthenticated, eventType: event, isPM}));
@@ -82,7 +88,7 @@ function handleError (target, error) {
 }
 
 function checkIfUserIsMod (username) { // Returns a Promise that will resolve as true if the user is in the mod database, and false otherwise
-    if (config.disable_db || db.conn == null) {
+    if (!config.db.enabled || db.conn == null) {
         return Promise.resolve(true);
     }
     return db.conn.query('SELECT * FROM User U JOIN Alias A ON U.UserID = A.UserID WHERE A.Alias = ? AND A.isNick = TRUE', [username]).then(res => !!res.length);
@@ -136,7 +142,7 @@ bot.on('-mode', (chan, by, mode, argument) => executeCommands(`mode -${mode}`, b
 function executeTask(taskName) {
   const params = tasks[taskName];
   const iteratee = params.concurrent ? params.task : _.once(params.task);
-  _.forOwn(config.tasks, (channelConfig, channel) => {
+  _.forOwn(config.irc.tasks, (channelConfig, channel) => {
     if (checkEnabled(channel, taskName, channelConfig)) {
       outputResponse(channel, iteratee({bot, channel: params.concurrent ? channel : null}));
     }

@@ -33,10 +33,10 @@ function listModules() {
 
 function setUp(config, commands) {
 	mysql.createConnection({
-		host: config.dbHost,
-		user: config.dbUser,
-		port: config.dbPort,
-		password: config.dbPassword,
+		host: config.host,
+		user: config.user,
+		port: config.port,
+		password: config.password,
 		database: config.database,
 		timezone: 'Etc/UTC'
 	}).then(function(conn) {
