@@ -27,6 +27,15 @@ module.exports = {
           // etc.
       }
   },
+  discord: {
+    enabled: true,
+    token: 'DISCORD TOKEN',
+    channels: { // Discord channel IDs for respective IRC ones 
+      '#ircroom1': '111111111111',
+    },
+    embedColor: ['#25C1C6', '#F388B2'],
+
+  },
   db: {
     enabled: true,
     host: "http://localhost",

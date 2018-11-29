@@ -7,6 +7,7 @@ var commands = require('./commands');
 const tasks = require('./tasks');
 const warn = _.memoize(console.warn);
 const bot = require('./services/irc').setUp(config.irc);
+const client = require('./services/discord').client;
 
 if (!config.db) {
     // Old config. Maybe we should give the user an option to rewrite the config
@@ -20,12 +21,17 @@ if (config.db.enabled) {
     console.log("The following modules, which require database connectivity, have been disabled: ["+db.listModules().join(", ")+"]");
 }
 
-function outputResponse(target, messages) {
+// Connect to Discord
+if (config.discord.enabled && config.discord.token) {
+  client.login(config.discord.token);
+}
+
+function outputResponse(target, messages, richMessages) {
     if (!messages) {
         return;
     }
     if (typeof messages === 'string') {
-        bot.say(target, messages);
+        sendMessage(target, messages, richMessages);
     } else if (Array.isArray(messages)) {
         for (let i = 0; i < messages.length; i++) {
             outputResponse(target, messages[i]);
@@ -42,7 +48,7 @@ function outputResponse(target, messages) {
         }
         switch (messages['response_type']) {
             case 'text':
-                bot.say(target, messages['message']);
+                sendMessage(target, messages['message']);
                 break;
             case 'action':
                 bot.action(target, messages['message']);
@@ -50,9 +56,32 @@ function outputResponse(target, messages) {
             default:
                 console.log("Message containing invalid `response_type` passed to outputResponse()");
         }
+    } else if (typeof messages === 'object' && messages.hasOwnProperty('text') && messages.hasOwnProperty('richText')) {
+      sendMessage(target, messages.text, messages.richText);
     } else {
         throw 'Invalid `messages` argument passed to outputResponse()';
     }
+}
+
+function sendMessage (target, messages, richMessages) {
+  let discordTarget = '';
+  if (config.discord.enabled) {
+    if (target.match(/\d+/)) {
+      discordTarget = target;
+        }
+    else if (config.discord.channels[target].match(/\d+/)) {
+      discordTarget = config.discord.channels[target]
+      }
+    if (!(richMessages)) {
+      richMessages = messages;
+      }
+  }
+  if (target.match(/#\w*/)) {
+    bot.say(target, messages);
+  }
+  if (discordTarget) {
+    client.channels.get(discordTarget).send(richMessages);
+  }
 }
 
 function defaultAllow ({isPM, isMod, isAuthenticated}) { // The default allow() function that gets used for a command if allow() is not provided
@@ -69,7 +98,13 @@ function executeCommands (event, author, channel, text) {
         if (message_match && author_match && author !== bot.nick && (isPM || checkEnabled(channel, i, config.irc.channels[channel]))) {
             Promise.join(checkIfUserIsMod(author), checkAuthenticated(author), (isMod, isAuthenticated) => {
                 if ((commands[event][i].allow || defaultAllow)({isPM, isMod, isAuthenticated})) {
+                    if (commands[event][i].richResponse) {
+                    outputResponse(target, commands[event][i].response({bot, message_match, author_match, channel, isMod, isAuthenticated, eventType: event, isPM}),
+                                   commands[event][i].richResponse({bot, message_match, author_match, channel, isMod, isAuthenticated, eventType: event, isPM}));
+                    }
+                    else {
                     outputResponse(target, commands[event][i].response({bot, message_match, author_match, channel, isMod, isAuthenticated, eventType: event, isPM}));
+                    }
                 } else if (config.debug) {
                     outputResponse(target, "You are not authorised to run that command");
                 }
