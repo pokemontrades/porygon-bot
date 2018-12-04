@@ -1,4 +1,5 @@
-var db = require('../services/db');
+const db = require('../services/db');
+const Op = require('sequelize').Op;
 
 module.exports = {
     db_required: true,
@@ -18,11 +19,12 @@ module.exports = {
             if (timezone === undefined) {
                 return "I'm not sure what time zone that's supposed to be.";
             }
-            return db.conn.query('UPDATE User SET timezone = ? WHERE UserID = ?',
-                [timezone,results.UserID]).then(function() {
-                    return "Timezone updated successfully!";
-                }).catch(function(err) {
+            return db.models.User
+                .update({Timezone: timezone}, {where: {UserID: {[Op.eq]: results.UserID}}})
+                .then(() => "Timezone updated successfully!")
+                .catch((err) => {
                     console.log(err);
+                    return "Error updating timezone";
                 });
         });
     }

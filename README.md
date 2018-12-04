@@ -21,6 +21,7 @@ Note: we recommend yarn due to it's improved caching and more reliable dependenc
 * `yarn` or `npm install`
 * `mv config.default.js config.js`
 * edit config.js and update information
+* If using database, add users into database
 
 ## Usage
 * With Yarn:

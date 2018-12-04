@@ -1,21 +1,26 @@
-const mysql = require('promise-mysql');
+const Sequelize = require('sequelize');
+const Op = Sequelize.Op;
+const path = require('path');
+const models = require('./models');
 
 const db = {
-    conn: null,
+    connected: false,
     modules: {},
     getUserInfo,
     listModules,
-    setUp
+    setUp,
+    models: {}
 };
 
 module.exports = db;
 
 function getUserInfo(nick, callback) {
-    return module.exports.conn.query('SELECT * FROM User U JOIN Alias A ON U.UserID = A.UserID WHERE A.Alias = ?',
-        [nick]).then(function(result) {
-            return callback(result[0]);
-        }).catch(function(err) {
-            console.log(err);
+    return db.models.Alias.findOne({where: {Alias: {[Op.eq]: nick}}, include: [db.models.User]})
+        .then((result) => result ? result.get({plain: true}) : Promise.reject(`No user/alias found for ${nick}`))
+        .then(({UserID, Alias, isNick, User: {Timezone, MainNick}}) => callback({UserID, Alias, isNick, Timezone, MainNick}))
+        .catch((err) => {
+            console.log(`Error updating timezone: ${err}`);
+            Promise.reject(err);
         });
 }
 
@@ -32,16 +37,23 @@ function listModules() {
 }
 
 function setUp(config, commands) {
-	mysql.createConnection({
-		host: config.host,
-		user: config.user,
-		port: config.port,
-		password: config.password,
-		database: config.database,
-		timezone: 'Etc/UTC'
-	}).then(function(conn) {
+    const sequelize = new Sequelize(config.database, config.user, config.password, {
+        host: config.host,
+        port: config.port,
+        dialect: 'mysql',
+        logging: false,
 
-        db.conn = conn;
+        // SQLite only
+        storage: config.sqlite ? path.join(__dirname, '..', '..', 'database.sqlite') : undefined,
+        operatorsAliases: false
+    });
+
+    db.models = models(sequelize);
+
+    sequelize.sync()
+        .then(function() {
+
+        db.connected = true;
 
 		Object.keys(db.modules).forEach(function(event) {
 			Object.keys(db.modules[event]).forEach(function(name) {

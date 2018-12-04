@@ -7,6 +7,7 @@ var commands = require('./commands');
 const tasks = require('./tasks');
 const warn = _.memoize(console.warn);
 const bot = require('./services/irc').setUp(config.irc);
+const Op = require('sequelize').Op;
 
 if (!config.db) {
     // Old config. Maybe we should give the user an option to rewrite the config
@@ -88,10 +89,12 @@ function handleError (target, error) {
 }
 
 function checkIfUserIsMod (username) { // Returns a Promise that will resolve as true if the user is in the mod database, and false otherwise
-    if (!config.db.enabled || db.conn == null) {
+    if (!config.db.enabled || db.connected) {
         return Promise.resolve(true);
     }
-    return db.conn.query('SELECT * FROM User U JOIN Alias A ON U.UserID = A.UserID WHERE A.Alias = ? AND A.isNick = TRUE', [username]).then(res => !!res.length);
+    return db.models.Alias
+        .find({where: {isNick: {[Op.eq]: true}, Alias: {[Op.eq]: username}}, include: [db.models.User]})
+        .then((user) => user !== undefined);
 }
 
 function checkAuthenticated (username) { // Returns a Promise that will resolve as true if the user is identified, and false otherwise

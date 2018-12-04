@@ -1,5 +1,6 @@
 'use strict';
 const db = require('../services/db');
+const Op = require('sequelize').Op;
 
 module.exports = {
   db_required: true,
@@ -10,14 +11,15 @@ module.exports = {
     if (recipient.toLowerCase() === bot.nick.toLowerCase()) {
       return {response_type: 'action', message: `slaps ${author}.`};
     }
-    return db.conn.query('SELECT * FROM User U JOIN Alias A ON U.UserID = A.UserID WHERE A.Alias = ?', [`${recipient}`]).get(0).then(recipientInfo => {
-      if (!recipientInfo) {
-        return 'There was an error. Do I even know that person?';
-      }
-      return db.conn.query(
-        'INSERT INTO Message (TargetID, SenderName, MessageText, Location) VALUES (?, ?, ?, ?)',
-        [recipientInfo.UserID, author, text, channel]
-      ).return(`Saved message for ${recipientInfo.MainNick}. Beep boop.`);
-    });
+    return db.models.Alias.findOne({where: {Alias: {[Op.eq]: recipient}}})
+        .then((results) => results ? results.get('UserID') : Promise.reject())
+        .then((UserID) => db.models.Message.create({TargetID: UserID, SenderName: author, MessageText: text, Location: channel}))
+        // Sequelize doesn't allow you to join for the result returned from create, so we need to get the user to get the mainnick
+        .then((message) => db.models.Message.findById(message.get('MessageID'), {include: [db.models.User]}))
+        .then((message) => `Saved message for ${message.get('User', {plain: true}).MainNick}. Beep boop.`)
+        .catch((err) => {
+          console.log(`Error: ${err}`);
+          return 'There was an error. Do I even know that person?';
+        });
   }
 };
