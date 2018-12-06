@@ -69,8 +69,8 @@ function sendMessage (target, messages, richMessages) {
     if (target.match(/\d+/)) {
       discordTarget = target;
         }
-    else if (config.discord.channels[target].match(/\d+/)) {
-      discordTarget = config.discord.channels[target]
+    else if (findIRCMatch(target)) {
+      discordTarget = findIRCMatch(target);
       }
     if (!(richMessages)) {
       richMessages = messages;
@@ -90,12 +90,20 @@ function defaultAllow ({isPM, isMod, isAuthenticated}) { // The default allow() 
 
 // Main listener for channel messages/PMs
 function executeCommands (event, author, channel, text) {
+    // Processing Discord-related properties
+    if (event.includes("Discord")) {
+        author = author.username;
+        channel = channel.id;
+        event = event.replace('Discord','');
+        
+    }
     let isPM = channel === bot.nick;
     let target = isPM ? author : channel;
     for (let i in commands[event]) {
         let message_match = (commands[event][i].message_regex || /.*/).exec(text);
         let author_match = (commands[event][i].author_regex || /.*/).exec(author);
-        if (message_match && author_match && author !== bot.nick && (isPM || checkEnabled(channel, i, config.irc.channels[channel]))) {
+        if (message_match && author_match && author !== bot.nick && author !== client.user.username && 
+            (isPM || checkEnabled(channel, i, config.irc.channels[channel]) || checkEnabled(channel, i, config.irc.channels[config.discord.channels[target]]))) {
             Promise.join(checkIfUserIsMod(author), checkAuthenticated(author), (isMod, isAuthenticated) => {
                 if ((commands[event][i].allow || defaultAllow)({isPM, isMod, isAuthenticated})) {
                     if (commands[event][i].richResponse) {
@@ -167,12 +175,23 @@ function checkEnabled (channelName, itemName, itemConfig) {
     return false;
 }
 
+function findIRCMatch (ircChannelName) {
+    for (let id in config.discord.channels) {
+        if (config.discord.channels[id] === ircChannelName) {
+            return id;
+        }
+    }
+    return false;
+}
+
 bot.on('error', console.error);
 bot.on('message', _.partial(executeCommands, 'message'));
 bot.on('join', (chan, user) => executeCommands('join', user, chan));
 bot.on('action', _.partial(executeCommands, 'action'));
 bot.on('+mode', (chan, by, mode, argument) => executeCommands(`mode +${mode}`, by, chan, argument));
 bot.on('-mode', (chan, by, mode, argument) => executeCommands(`mode -${mode}`, by, chan, argument));
+
+client.on('message', msg => {executeCommands('messageDiscord', msg.author, msg.channel, msg.content)});
 
 function executeTask(taskName) {
   const params = tasks[taskName];

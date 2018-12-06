@@ -30,8 +30,8 @@ module.exports = {
   discord: {
     enabled: true,
     token: 'DISCORD TOKEN',
-    channels: { // Discord channel IDs for respective IRC ones 
-      '#ircroom1': '111111111111',
+    channels: { // IRC channels names for respective Discord channels
+      '1111111': '#ircroom1',
     },
     embedColor: ['#25C1C6', '#F388B2'],
 
