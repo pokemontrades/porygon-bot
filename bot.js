@@ -68,6 +68,7 @@ function sendMessage (target, messages, richMessages) {
   if (config.discord.enabled) {
     if (target.match(/\d+/)) {
       discordTarget = target;
+      target = config.discord.channels[target];
         }
     else if (findIRCMatch(target)) {
       discordTarget = findIRCMatch(target);
@@ -95,15 +96,15 @@ function executeCommands (event, author, channel, text) {
         author = author.username;
         channel = channel.id;
         event = event.replace('Discord','');
-        
     }
     let isPM = channel === bot.nick;
     let target = isPM ? author : channel;
     for (let i in commands[event]) {
         let message_match = (commands[event][i].message_regex || /.*/).exec(text);
         let author_match = (commands[event][i].author_regex || /.*/).exec(author);
+        let itemConfig = config.irc.channels[channel] ? config.irc.channels[channel] : config.irc.channels[config.discord.channels[target]];
         if (message_match && author_match && author !== bot.nick && author !== client.user.username && 
-            (isPM || checkEnabled(channel, i, config.irc.channels[channel]) || checkEnabled(channel, i, config.irc.channels[config.discord.channels[target]]))) {
+            (isPM || checkEnabled(channel, i, itemConfig))) {
             Promise.join(checkIfUserIsMod(author), checkAuthenticated(author), (isMod, isAuthenticated) => {
                 if ((commands[event][i].allow || defaultAllow)({isPM, isMod, isAuthenticated})) {
                     if (commands[event][i].richResponse) {
