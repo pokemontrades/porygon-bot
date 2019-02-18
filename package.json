@@ -26,9 +26,10 @@
     "lodash": "^4.6.1",
     "minimist": "^1.2.0",
     "moment": "^2.10.6",
+    "mysql2": "^1.5.1",
     "node-cache": "^3.0.0",
-    "promise-mysql": "^1.2.0",
     "request-promise": "^3.0.0",
+    "sequelize": "^4.32.2",
     "snoowrap": "^1.8.1"
   },
   "repository": "https://github.com/pokemontrades/porygon-bot",
