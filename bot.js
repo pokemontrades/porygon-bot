@@ -61,13 +61,13 @@ function defaultAllow ({isPM, isMod, isAuthenticated}) { // The default allow() 
 }
 
 // Main listener for channel messages/PMs
-function executeCommands (event, author, channel, text) {
-    let isPM = channel === bot.nick;
+function executeCommands (event, {nick: author, target: channel, message: text}) {
+    let isPM = channel === bot.user.nick;
     let target = isPM ? author : channel;
     for (let i in commands[event]) {
         let message_match = (commands[event][i].message_regex || /.*/).exec(text);
         let author_match = (commands[event][i].author_regex || /.*/).exec(author);
-        if (message_match && author_match && author !== bot.nick && (isPM || checkEnabled(channel, i, config.irc.channels[channel]))) {
+        if (message_match && author_match && author !== bot.user.nick && (isPM || checkEnabled(channel, i, config.irc.channels[channel]))) {
             Promise.join(checkIfUserIsMod(author), checkAuthenticated(author), (isMod, isAuthenticated) => {
                 if ((commands[event][i].allow || defaultAllow)({isPM, isMod, isAuthenticated})) {
                     outputResponse(target, commands[event][i].response({bot, message_match, author_match, channel, isMod, isAuthenticated, eventType: event, isPM}));
@@ -100,9 +100,9 @@ function checkIfUserIsMod (username) { // Returns a Promise that will resolve as
 function checkAuthenticated (username) { // Returns a Promise that will resolve as true if the user is identified, and false otherwise
     bot.say('NickServ', `STATUS ${username}`);
     var awaitResponse = () => new Promise(resolve => {
-        bot.once('notice', (nick, to, text) => {
-            if (nick === 'NickServ' && to === bot.nick && text.indexOf(`STATUS ${username} `) === 0) {
-                resolve(text.slice(-1) === '3');
+        bot.on('notice', ({nick, to, message}) => {
+            if (nick === 'NickServ' && to === bot.nick && message.indexOf(`STATUS ${username} `) === 0) {
+                resolve(message.slice(-1) === '3');
             } else { // The notice was something unrelated, set up the listener again
                 resolve(awaitResponse());
             }
@@ -136,11 +136,14 @@ function checkEnabled (channelName, itemName, itemConfig) {
 }
 
 bot.on('error', console.error);
-bot.on('message', _.partial(executeCommands, 'message'));
-bot.on('join', (chan, user) => executeCommands('join', user, chan));
+bot.on('privmsg', _.partial(executeCommands, 'message'));
+bot.on('join', ({channel, nick}) => executeCommands('join', nick, channel));
 bot.on('action', _.partial(executeCommands, 'action'));
-bot.on('+mode', (chan, by, mode, argument) => executeCommands(`mode +${mode}`, by, chan, argument));
-bot.on('-mode', (chan, by, mode, argument) => executeCommands(`mode -${mode}`, by, chan, argument));
+bot.on('mode', ({target, nick, modes}) => {
+    modes.forEach((mode) => {
+        executeCommands(`mode ${mode.mode}`, nick, target, mode.param);
+    });
+});
 
 function executeTask(taskName) {
   const params = tasks[taskName];
@@ -152,7 +155,7 @@ function executeTask(taskName) {
   });
 }
 
-bot.once('join', () => {
+bot.on('join', () => {
   _.forOwn(tasks, (params, taskName) => {
     if (params.onStart) {
       executeTask(taskName);

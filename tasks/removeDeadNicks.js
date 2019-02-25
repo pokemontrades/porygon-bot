@@ -40,8 +40,8 @@ function getInviteList (bot, channel) {
   };
   return new Promise(resolve => {
     resolvePromise = resolve;
-    bot.send('mode', channel, '+I');
-    bot.on('raw', parseMessage);
+    bot.raw('mode', channel, '+I');
+    bot.on('message', parseMessage);
   }).timeout(10000, 'Timed out while retrieving channel invite list').finally(() => bot.removeListener('raw', parseMessage));
 }
 

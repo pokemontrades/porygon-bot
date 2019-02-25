@@ -22,7 +22,7 @@
   ],
   "dependencies": {
     "bluebird": "^3.3.4",
-    "irc": "~0.3.0",
+    "irc-framework": "^4.2.0",
     "lodash": "^4.6.1",
     "minimist": "^1.2.0",
     "moment": "^2.10.6",

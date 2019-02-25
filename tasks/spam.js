@@ -22,7 +22,7 @@ Sorry, but this thread has been removed because it violates [rule 7](/r/pokemont
 module.exports = {
   period: 60,
   onStart: false,
-  task ({bot: {nick}}) {
+  task ({bot: {user: {nick}}}) {
     return r.getSubreddit(SUBREDDIT).getNew()
       .filter(thread => !handledThreadIds.has(thread.id))
       .then(threads => threads.reverse())
