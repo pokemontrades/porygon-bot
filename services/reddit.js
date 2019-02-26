@@ -8,4 +8,6 @@ if (config.reddit.enabled) {
         refresh_token: config.reddit.refresh_token,
         user_agent: config.reddit.user_agent
     });
+} else {
+    module.exports = false;
 }

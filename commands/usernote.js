@@ -1,7 +1,8 @@
 'use strict';
 const r = require('../services/reddit');
 if (!r) {
-  return;
+  module.exports =  false;
+  return false;
 }
 
 var _ = require('lodash');
