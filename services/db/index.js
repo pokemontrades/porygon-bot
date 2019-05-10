@@ -40,11 +40,11 @@ function setUp(config, commands) {
     const sequelize = new Sequelize(config.database, config.user, config.password, {
         host: config.host,
         port: config.port,
-        dialect: 'mysql',
+        dialect: config.type || 'mysql',
         logging: false,
 
         // SQLite only
-        storage: config.sqlite ? path.join(__dirname, '..', '..', 'database.sqlite') : undefined,
+        storage: path.join(__dirname, '..', '..', 'database.sqlite'),
         operatorsAliases: false
     });
 

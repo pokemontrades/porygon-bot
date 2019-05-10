@@ -29,6 +29,7 @@ module.exports = {
   },
   db: {
     enabled: true,
+    type: "sqlite", // Type of Database. Options: "sqlite" or "mysql". Default: "sqlite" 
     host: "http://localhost",
     port: 3306,
     user: "mysql",
