@@ -7,8 +7,8 @@ const usernoteHelper = require('../services/usernote-helper');
 const SUBREDDIT = 'pokemontrades';
 
 const SPAM_COOLDOWN = 60 * 60 * 6; // The number of seconds allowed between threads
-const TRADE_TYPE_CSS_CLASSES = new Set(['tradeback', 'dexevo', 'redeem', 'swsh', 'smusum', 'xyoras', 'letsgo']);
-const GIVEAWAY_TYPE_CSS_CLASSES = new Set(['contest', 'giveaway']);
+const TRADE_TYPE_FLAIRS = new Set(['SWSH', 'LGPE', 'SMUSUM', 'XYORAS', 'Home', 'Tradeback', 'Redeem']);
+const GIVEAWAY_TYPE_FLAIRS = new Set(['Giveaway']);
 
 const threadsByUser = new Map();
 const handledThreadIds = new Set();
@@ -43,7 +43,7 @@ module.exports = {
             thread.author.name,
             threadsByUser.get(thread.author.name)
               .filter(oldThread => oldThread.created_utc + SPAM_COOLDOWN > Date.now() / 1000)
-              .concat({url: thread.url, created_utc: thread.created_utc, link_flair_css_class: thread.link_flair_css_class})
+              .concat({url: thread.url, created_utc: thread.created_utc, link_flair_text: thread.link_flair_text})
           );
         }
       }).filter(response => response);
@@ -52,7 +52,7 @@ module.exports = {
 
 function threadBreaksRules (thread, oldThread) {
   return oldThread.created_utc + SPAM_COOLDOWN > thread.created_utc && (
-    TRADE_TYPE_CSS_CLASSES.has(thread.link_flair_css_class) && TRADE_TYPE_CSS_CLASSES.has(oldThread.link_flair_css_class) ||
-    GIVEAWAY_TYPE_CSS_CLASSES.has(thread.link_flair_css_class) && GIVEAWAY_TYPE_CSS_CLASSES.has(oldThread.link_flair_css_class)
+    TRADE_TYPE_FLAIRS.has(thread.link_flair_text) && TRADE_TYPE_FLAIRS.has(oldThread.link_flair_text) ||
+    GIVEAWAY_TYPE_FLAIRS.has(thread.link_flair_text) && GIVEAWAY_TYPE_FLAIRS.has(oldThread.link_flair_text)
   );
 }
