@@ -35,7 +35,7 @@ module.exports = {
         const oldThread = threadsByUser.get(thread.author.name).find(oldThread => threadBreaksRules(thread, oldThread));
 
         if (oldThread && thread.approved_by === null) {
-          return thread.remove().reply(getSpamReply(thread, oldThread)).distinguish().return(
+          return thread.remove().lock().reply(getSpamReply(thread, oldThread)).distinguish().return(
             `[Flood notification]: The thread <${thread.url}> by /u/${thread.author.name} breaks the flood rule, and has been removed. (Old thread: <${oldThread.url}> )`
           ).tap(() => usernoteHelper.addNote({mod: nick, user: thread.author.name, subreddit: thread.subreddit.display_name, note: '6 hour rule', link: `l,${thread.id}`, index: 0, fromChannel: null}));
         } else {
