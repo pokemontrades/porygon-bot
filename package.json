@@ -29,7 +29,7 @@
     "mysql2": "^1.5.1",
     "node-cache": "^3.0.0",
     "request-promise": "^3.0.0",
-    "sequelize": "^4.32.2",
+    "sequelize": "^5.15.1",
     "snoowrap": "^1.8.1",
     "sqlite3": "^4.0.6"
   },
