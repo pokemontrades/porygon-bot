@@ -7,8 +7,8 @@ const usernoteHelper = require('../services/usernote-helper');
 const SUBREDDIT = 'pokemontrades';
 
 const SPAM_COOLDOWN = 60 * 60 * 6; // The number of seconds allowed between threads
-const TRADE_TYPE_FLAIRS = new Set(['SWSH', 'LGPE', 'SMUSUM', 'XYORAS', 'Home', 'Tradeback', 'Redeem']);
-const GIVEAWAY_TYPE_FLAIRS = new Set(['Giveaway']);
+const TRADE_TYPE_FLAIRS = new Set(['SWSH', 'LGPE', 'SMUSUM', 'XYORAS', 'Home', 'Tradeback', 'Redeem', 'Item', 'Shiny', 'Event']);
+const GIVEAWAY_TYPE_FLAIRS = new Set(['Giveaway', 'Contest']);
 
 const threadsByUser = new Map();
 const handledThreadIds = new Set();
