@@ -24,7 +24,7 @@
     "bluebird": "^3.3.4",
     "irc": "~0.3.0",
     "lodash": "^4.6.1",
-    "minimist": "^1.2.0",
+    "minimist": "^1.2.6",
     "moment": "^2.10.6",
     "mysql2": "^1.5.1",
     "node-cache": "^3.0.0",
